@@ -1,815 +1,923 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
+  Avatar,
   Box,
-  ButtonBase,
   Button,
   Card,
   CardContent,
-  Checkbox,
   Chip,
   Container,
-  FormControl,
-  FormControlLabel,
   Grid,
-  InputLabel,
-  LinearProgress,
-  MenuItem,
-  Select,
+  IconButton,
+  InputAdornment,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
+import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
-import AppsRoundedIcon from "@mui/icons-material/AppsRounded";
-import ChecklistRoundedIcon from "@mui/icons-material/ChecklistRounded";
-import DesktopWindowsRoundedIcon from "@mui/icons-material/DesktopWindowsRounded";
-import EngineeringRoundedIcon from "@mui/icons-material/EngineeringRounded";
-import LanguageRoundedIcon from "@mui/icons-material/LanguageRounded";
-import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
-import NightlightRoundedIcon from "@mui/icons-material/NightlightRounded";
+import BusinessRoundedIcon from "@mui/icons-material/BusinessRounded";
+import FormatQuoteRoundedIcon from "@mui/icons-material/FormatQuoteRounded";
+import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
+import InsightsRoundedIcon from "@mui/icons-material/InsightsRounded";
+import MarkEmailReadRoundedIcon from "@mui/icons-material/MarkEmailReadRounded";
 import RocketLaunchRoundedIcon from "@mui/icons-material/RocketLaunchRounded";
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import SecurityRoundedIcon from "@mui/icons-material/SecurityRounded";
+import StarRoundedIcon from "@mui/icons-material/StarRounded";
+import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
 import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
-import WorkHistoryRoundedIcon from "@mui/icons-material/WorkHistoryRounded";
-import type { AppLanguage, ThemePreference } from "@/lib/app-settings";
+import WorkOutlineIcon from "@mui/icons-material/WorkOutline";
+import WorkspacePremiumRoundedIcon from "@mui/icons-material/WorkspacePremiumRounded";
 import { useAppSettings } from "@/lib/app-settings";
 import { translate } from "@/lib/i18n";
-import { sampleJobs } from "@/lib/mock-data";
+import { sampleJobs, sampleTestimonials } from "@/lib/mock-data";
+import Footer from "@/app/footer";
+import Navbar from "@/app/navbar";
 
-type RoleFilter = "all" | "frontend" | "backend" | "qa" | "devops";
+/* ── Animated counter hook ───────────────────────────────────────── */
 
-const CHECKLIST_STORAGE_KEY = "hire_now_home_checklist_v1";
-const JOB_FIT_STORAGE_KEY = "hire_now_home_job_fit_v1";
+function useCountUp(target: number, inView: boolean, duration = 1600) {
+  const [value, setValue] = useState(0);
+  const rafRef = useRef<number | null>(null);
 
-const defaultChecklist = {
-  profile: false,
-  resume: false,
-  links: false,
-  filters: false,
-  firstApply: false,
-};
+  useEffect(() => {
+    if (!inView) return;
+    const start = performance.now();
 
-type ChecklistKey = keyof typeof defaultChecklist;
-
-const roleKeywords: Record<RoleFilter, string[]> = {
-  all: [],
-  frontend: ["frontend", "react", "next.js", "ui"],
-  backend: ["backend", "node", "api", "postgres", "nest"],
-  qa: ["qa", "test", "automation", "cypress", "playwright"],
-  devops: ["devops", "aws", "kubernetes", "terraform", "ci/cd"],
-};
-
-function roleFilterMatches(
-  filter: RoleFilter,
-  job: { title: string; tags: string[] },
-) {
-  if (filter === "all") {
-    return true;
-  }
-
-  const text = `${job.title} ${job.tags.join(" ")}`.toLowerCase();
-  return roleKeywords[filter].some((keyword) => text.includes(keyword));
-}
-
-function parseSkills(value: string) {
-  return value
-    .split(",")
-    .map((item) => item.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-function readChecklistFromStorage() {
-  if (typeof window === "undefined") {
-    return defaultChecklist;
-  }
-
-  try {
-    const rawChecklist = window.localStorage.getItem(CHECKLIST_STORAGE_KEY);
-    if (!rawChecklist) {
-      return defaultChecklist;
+    function tick(now: number) {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.round(eased * target));
+      if (progress < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      }
     }
 
-    const parsed = JSON.parse(rawChecklist) as Partial<typeof defaultChecklist>;
-    return {
-      profile: Boolean(parsed.profile),
-      resume: Boolean(parsed.resume),
-      links: Boolean(parsed.links),
-      filters: Boolean(parsed.filters),
-      firstApply: Boolean(parsed.firstApply),
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  } catch {
-    return defaultChecklist;
-  }
+  }, [target, inView, duration]);
+
+  return value;
 }
 
-function readSkillInputFromStorage() {
-  if (typeof window === "undefined") {
-    return "";
-  }
+/* ── Animated stat card ─────────────────────────────────────────── */
 
-  try {
-    const rawJobFit = window.localStorage.getItem(JOB_FIT_STORAGE_KEY);
-    if (!rawJobFit) {
-      return "";
-    }
+function AnimatedStatCard({
+  stat,
+  isDark,
+}: {
+  stat: { label: string; value: number; suffix: string; icon: ReactNode };
+  isDark: boolean;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [inView, setInView] = useState(false);
 
-    const parsed = JSON.parse(rawJobFit) as { skillInput?: string };
-    return typeof parsed.skillInput === "string" ? parsed.skillInput : "";
-  } catch {
-    return "";
-  }
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.3 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const animatedValue = useCountUp(stat.value, inView);
+
+  return (
+    <Box
+      ref={ref}
+      sx={{
+        textAlign: "center",
+        py: 3,
+        px: 2,
+      }}
+    >
+      <Box sx={{ color: isDark ? "#60A5FA" : "#3B82F6", mb: 1.2 }}>
+        {stat.icon}
+      </Box>
+      <Typography
+        variant="h3"
+        sx={{
+          fontWeight: 800,
+          color: isDark ? "#F1F5F9" : "#0F172A",
+          fontSize: { xs: 28, md: 36 },
+        }}
+      >
+        {animatedValue.toLocaleString()}{stat.suffix}
+      </Typography>
+      <Typography
+        variant="body2"
+        sx={{
+          color: isDark ? "rgba(148, 163, 184, 0.85)" : "rgba(100, 116, 139, 0.85)",
+          fontWeight: 500,
+          mt: 0.3,
+        }}
+      >
+        {stat.label}
+      </Typography>
+    </Box>
+  );
 }
 
-function readRoleFilterFromStorage(): RoleFilter {
-  if (typeof window === "undefined") {
-    return "all";
-  }
+/* ── Fade-in on scroll wrapper ─────────────────────────────────── */
 
-  try {
-    const rawJobFit = window.localStorage.getItem(JOB_FIT_STORAGE_KEY);
-    if (!rawJobFit) {
-      return "all";
-    }
+function FadeInSection({ children, delay = 0 }: { children: ReactNode; delay?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
 
-    const parsed = JSON.parse(rawJobFit) as { roleFilter?: RoleFilter };
-    return parsed.roleFilter === "all" ||
-      parsed.roleFilter === "frontend" ||
-      parsed.roleFilter === "backend" ||
-      parsed.roleFilter === "qa" ||
-      parsed.roleFilter === "devops"
-      ? parsed.roleFilter
-      : "all";
-  } catch {
-    return "all";
-  }
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.15 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <Box
+      ref={ref}
+      sx={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(24px)",
+        transition: `opacity 700ms ease ${delay}ms, transform 700ms ease ${delay}ms`,
+      }}
+    >
+      {children}
+    </Box>
+  );
 }
+
+/* ── Trusted companies marquee ─────────────────────────────────── */
+
+const trustedCompanies = [
+  "DeployNow", "NovaLabs", "SkyMetrics", "CloudNest", "SprintCore", "ByteHive",
+  "DeployNow", "NovaLabs", "SkyMetrics", "CloudNest", "SprintCore", "ByteHive",
+];
+
+function TrustedMarquee({ isDark }: { isDark: boolean }) {
+  return (
+    <Box
+      sx={{
+        overflow: "hidden",
+        position: "relative",
+        py: 1,
+        "&::before, &::after": {
+          content: '""',
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          width: 80,
+          zIndex: 2,
+        },
+        "&::before": {
+          left: 0,
+          background: isDark
+            ? "linear-gradient(90deg, #0A1120, transparent)"
+            : "linear-gradient(90deg, #F6F8FC, transparent)",
+        },
+        "&::after": {
+          right: 0,
+          background: isDark
+            ? "linear-gradient(270deg, #0A1120, transparent)"
+            : "linear-gradient(270deg, #F6F8FC, transparent)",
+        },
+      }}
+    >
+      <Box
+        sx={{
+          display: "flex",
+          gap: 5,
+          animation: "marquee 25s linear infinite",
+          "@keyframes marquee": {
+            "0%": { transform: "translateX(0)" },
+            "100%": { transform: "translateX(-50%)" },
+          },
+        }}
+      >
+        {trustedCompanies.map((name, i) => (
+          <Typography
+            key={`${name}-${i}`}
+            variant="body1"
+            sx={{
+              whiteSpace: "nowrap",
+              fontWeight: 700,
+              fontSize: 15,
+              color: isDark ? "rgba(148, 163, 184, 0.5)" : "rgba(100, 116, 139, 0.45)",
+              letterSpacing: 0.5,
+              textTransform: "uppercase",
+            }}
+          >
+            {name}
+          </Typography>
+        ))}
+      </Box>
+    </Box>
+  );
+}
+
+/* ── Main component ────────────────────────────────────────────── */
 
 export default function Home() {
-  const { language, themeMode, themePreference, setLanguage, setThemePreference } =
-    useAppSettings();
+  const { language, themeMode } = useAppSettings();
   const t = (key: string) => translate(language, key);
-
   const isDark = themeMode === "dark";
-  const [checklist, setChecklist] = useState(readChecklistFromStorage);
-  const [skillInput, setSkillInput] = useState(readSkillInputFromStorage);
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>(readRoleFilterFromStorage);
 
-  const themeOptions: { value: ThemePreference; icon: ReactNode; label: string }[] = [
-    {
-      value: "light",
-      icon: <LightModeRoundedIcon fontSize="small" />,
-      label: t("settings.theme.light"),
-    },
-    {
-      value: "dark",
-      icon: <NightlightRoundedIcon fontSize="small" />,
-      label: t("settings.theme.dark"),
-    },
-    {
-      value: "system",
-      icon: <DesktopWindowsRoundedIcon fontSize="small" />,
-      label: t("settings.theme.system"),
-    },
-  ];
+  const [searchQuery, setSearchQuery] = useState("");
+  const [emailInput, setEmailInput] = useState("");
+  const [emailSubmitted, setEmailSubmitted] = useState(false);
 
-  const languageOptions: { value: AppLanguage; label: string }[] = [
-    { value: "en", label: t("settings.language.en") },
-    { value: "uk", label: t("settings.language.uk") },
-  ];
+  const filteredJobs = useMemo(() => {
+    if (!searchQuery.trim()) return sampleJobs.slice(0, 3);
+    const q = searchQuery.toLowerCase();
+    return sampleJobs
+      .filter((j) => `${j.title} ${j.company} ${j.tags.join(" ")}`.toLowerCase().includes(q))
+      .slice(0, 4);
+  }, [searchQuery]);
 
-  const featureKeys = [
-    "resume",
-    "auth",
-    "matching",
-    "workspace",
-    "pipeline",
-    "analytics",
-  ];
-
-  const checklistItems: { key: ChecklistKey; icon: ReactNode; label: string }[] = [
-    {
-      key: "profile",
-      icon: <VerifiedUserRoundedIcon fontSize="small" color="primary" />,
-      label: t("landing.checklist.item.profile"),
-    },
-    {
-      key: "resume",
-      icon: <WorkHistoryRoundedIcon fontSize="small" color="primary" />,
-      label: t("landing.checklist.item.resume"),
-    },
-    {
-      key: "links",
-      icon: <EngineeringRoundedIcon fontSize="small" color="primary" />,
-      label: t("landing.checklist.item.links"),
-    },
-    {
-      key: "filters",
-      icon: <ChecklistRoundedIcon fontSize="small" color="primary" />,
-      label: t("landing.checklist.item.filters"),
-    },
-    {
-      key: "firstApply",
-      icon: <RocketLaunchRoundedIcon fontSize="small" color="primary" />,
-      label: t("landing.checklist.item.firstApply"),
-    },
-  ];
-
-  const completionPercent = useMemo(() => {
-    const completed = Object.values(checklist).filter(Boolean).length;
-    return Math.round((completed / checklistItems.length) * 100);
-  }, [checklist, checklistItems.length]);
-
-  const normalizedSkills = useMemo(() => parseSkills(skillInput), [skillInput]);
-
-  const rankedJobs = useMemo(() => {
-    const candidates = sampleJobs.filter((job) => roleFilterMatches(roleFilter, job));
-
-    return candidates
-      .map((job) => {
-        const text = `${job.title} ${job.tags.join(" ")}`.toLowerCase();
-        const matchedSkills = normalizedSkills.filter((skill) => text.includes(skill));
-        const score =
-          normalizedSkills.length === 0
-            ? roleFilter === "all"
-              ? 62
-              : 74
-            : Math.min(
-                98,
-                Math.max(
-                  25,
-                  Math.round((matchedSkills.length / normalizedSkills.length) * 100),
-                ),
-              );
-
-        return {
-          ...job,
-          matchedSkills,
-          score,
-        };
-      })
-      .filter((job) => normalizedSkills.length === 0 || job.matchedSkills.length > 0)
-      .sort((first, second) => second.score - first.score);
-  }, [normalizedSkills, roleFilter]);
-
-  const topRecommendations = rankedJobs.slice(0, 3);
-  const averageScore =
-    topRecommendations.length > 0
-      ? Math.round(
-          topRecommendations.reduce((sum, job) => sum + job.score, 0) /
-            topRecommendations.length,
-        )
-      : 0;
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    try {
-      window.localStorage.setItem(CHECKLIST_STORAGE_KEY, JSON.stringify(checklist));
-    } catch {
-      // Ignore storage errors.
-    }
-  }, [checklist]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    try {
-      window.localStorage.setItem(
-        JOB_FIT_STORAGE_KEY,
-        JSON.stringify({ skillInput, roleFilter }),
-      );
-    } catch {
-      // Ignore storage errors.
-    }
-  }, [roleFilter, skillInput]);
-
-  function toggleChecklistItem(key: ChecklistKey) {
-    setChecklist((prev) => ({ ...prev, [key]: !prev[key] }));
+  function handleEmailSubmit() {
+    if (!emailInput.includes("@")) return;
+    setEmailSubmitted(true);
+    setTimeout(() => setEmailSubmitted(false), 4000);
+    setEmailInput("");
   }
 
-  function resetChecklist() {
-    setChecklist(defaultChecklist);
-  }
+  const features = [
+    { icon: <WorkOutlineIcon />, key: "landing.feat.jobs" },
+    { icon: <AutoAwesomeRoundedIcon />, key: "landing.feat.matching" },
+    { icon: <InsightsRoundedIcon />, key: "landing.feat.analytics" },
+    { icon: <SecurityRoundedIcon />, key: "landing.feat.auth" },
+    { icon: <BusinessRoundedIcon />, key: "landing.feat.pipeline" },
+    { icon: <WorkspacePremiumRoundedIcon />, key: "landing.feat.resume" },
+  ];
 
   return (
     <Box
       sx={{
         minHeight: "100vh",
-        py: { xs: 2.5, md: 5 },
         background: isDark
-          ? "linear-gradient(180deg, #0F172A 0%, #101827 100%)"
-          : "linear-gradient(180deg, #F6F8FC 0%, #F8FAFD 100%)",
+          ? "linear-gradient(180deg, #0A1120 0%, #0F172A 100%)"
+          : "linear-gradient(180deg, #F6F8FC 0%, #FFFFFF 100%)",
+        overflow: "hidden",
       }}
     >
-      <Container maxWidth="lg">
-        <Stack spacing={{ xs: 2, md: 3 }}>
-          <Card
+      {/* Navbar */}
+      <Container maxWidth="lg" sx={{ pt: { xs: 2, md: 3 } }}>
+        <Navbar />
+      </Container>
+
+      {/* ── HERO ─────────────────────────────────────────────── */}
+      <Container maxWidth="md" sx={{ pt: { xs: 8, md: 14 }, pb: { xs: 6, md: 10 } }}>
+        <Stack spacing={3} alignItems="center" textAlign="center">
+          <Chip
+            icon={<RocketLaunchRoundedIcon sx={{ fontSize: 16 }} />}
+            label={t("landing.hero.badge")}
             sx={{
-              borderRadius: 3,
-              borderColor: isDark ? "rgba(148, 163, 184, 0.24)" : "rgba(148, 163, 184, 0.3)",
-              background: isDark ? "rgba(17, 24, 39, 0.74)" : "rgba(255, 255, 255, 0.94)",
-              backdropFilter: "blur(8px)",
+              fontWeight: 600,
+              px: 1,
+              color: isDark ? "#93C5FD" : "#1D4ED8",
+              bgcolor: isDark ? "rgba(30, 64, 175, 0.18)" : "rgba(219, 234, 254, 0.9)",
+              border: `1px solid ${isDark ? "rgba(96, 165, 250, 0.2)" : "rgba(59, 130, 246, 0.15)"}`,
+            }}
+          />
+
+          <Typography
+            variant="h1"
+            sx={{
+              fontSize: { xs: 36, sm: 50, md: 64 },
+              fontWeight: 800,
+              lineHeight: 1.08,
+              color: isDark ? "#F8FAFC" : "#0F172A",
+              maxWidth: 680,
+              "& span": {
+                background: isDark
+                  ? "linear-gradient(135deg, #60A5FA, #A78BFA)"
+                  : "linear-gradient(135deg, #2563EB, #7C3AED)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              },
             }}
           >
-            <CardContent>
-              <Stack
-                direction={{ xs: "column", lg: "row" }}
-                spacing={2}
-                alignItems={{ xs: "flex-start", lg: "center" }}
-                justifyContent="space-between"
-              >
-                <Stack direction="row" spacing={1.3} alignItems="center">
-                  <Box
-                    sx={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 1.4,
-                      display: "grid",
-                      placeItems: "center",
-                      color: "#F5F8FF",
-                      background:
-                        "linear-gradient(180deg, rgba(65, 120, 235, 0.96), rgba(41, 86, 186, 0.96))",
-                    }}
-                  >
-                    <AppsRoundedIcon fontSize="small" />
-                  </Box>
-                  <Box>
-                    <Typography
-                      variant="h5"
-                      sx={{
-                        fontWeight: 800,
-                        color: isDark ? "#E6EDF8" : "#14243D",
-                        lineHeight: 1.1,
-                      }}
-                    >
-                      {t("landing.nav.productName")}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{ color: isDark ? "rgba(226, 232, 240, 0.7)" : "rgba(51, 65, 85, 0.72)" }}
-                    >
-                      {t("landing.nav.tagline")}
-                    </Typography>
-                  </Box>
-                </Stack>
+            {t("landing.v2.hero.title1")} <span>{t("landing.v2.hero.titleHighlight")}</span> {t("landing.v2.hero.title2")}
+          </Typography>
 
-                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
-                  <Box
-                    sx={{
-                      height: 40,
-                      borderRadius: 2,
-                      border: `1px solid ${
-                        isDark ? "rgba(148, 163, 184, 0.34)" : "rgba(148, 163, 184, 0.36)"
-                      }`,
-                      background: isDark ? "rgba(30, 41, 59, 0.78)" : "rgba(255, 255, 255, 0.95)",
-                      px: 1,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 0.6,
-                    }}
-                  >
-                    <LanguageRoundedIcon
-                      sx={{ color: isDark ? "rgba(226, 232, 240, 0.84)" : "rgba(30, 41, 59, 0.72)" }}
-                      fontSize="small"
-                    />
-                    <Select
-                      value={language}
-                      variant="standard"
-                      disableUnderline
-                      onChange={(event) => setLanguage(event.target.value as AppLanguage)}
-                      sx={{
-                        minWidth: 130,
-                        color: isDark ? "#E2E8F0" : "#1E293B",
-                        fontWeight: 600,
-                        "& .MuiSelect-icon": {
-                          color: isDark ? "rgba(226, 232, 240, 0.86)" : "rgba(30, 41, 59, 0.68)",
-                        },
-                      }}
-                    >
-                      {languageOptions.map((option) => (
-                        <MenuItem key={option.value} value={option.value}>
-                          {option.label}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </Box>
-
-                  <Box
-                    sx={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(3, 1fr)",
-                      borderRadius: 999,
-                      border: `1px solid ${
-                        isDark ? "rgba(148, 163, 184, 0.36)" : "rgba(148, 163, 184, 0.4)"
-                      }`,
-                      overflow: "hidden",
-                    }}
-                  >
-                    {themeOptions.map((option, index) => {
-                      const active = themePreference === option.value;
-
-                      return (
-                        <ButtonBase
-                          key={option.value}
-                          onClick={() => setThemePreference(option.value)}
-                          aria-label={option.label}
-                          aria-pressed={active}
-                          sx={{
-                            width: 42,
-                            height: 40,
-                            display: "grid",
-                            placeItems: "center",
-                            cursor: "pointer",
-                            borderRight:
-                              index < themeOptions.length - 1
-                                ? `1px solid ${
-                                    isDark
-                                      ? "rgba(148, 163, 184, 0.24)"
-                                      : "rgba(148, 163, 184, 0.28)"
-                                  }`
-                                : "none",
-                            color: active
-                              ? isDark
-                                ? "#93C5FD"
-                                : "#1D4ED8"
-                              : isDark
-                                ? "#E2E8F0"
-                                : "#1E293B",
-                            background: active
-                              ? isDark
-                                ? "linear-gradient(180deg, rgba(37, 99, 235, 0.28), rgba(30, 64, 175, 0.3))"
-                                : "linear-gradient(180deg, rgba(239, 246, 255, 0.95), rgba(219, 234, 254, 0.98))"
-                              : isDark
-                                ? "rgba(15, 23, 42, 0.84)"
-                                : "rgba(255, 255, 255, 0.85)",
-                            transition: "all 160ms ease",
-                          }}
-                        >
-                          {option.icon}
-                        </ButtonBase>
-                      );
-                    })}
-                  </Box>
-
-                  <Button component={Link} href="/dashboard" variant="outlined" sx={{ height: 40 }}>
-                    {t("landing.nav.openDashboard")}
-                  </Button>
-                </Stack>
-              </Stack>
-            </CardContent>
-          </Card>
-
-          <Card
+          <Typography
+            variant="h6"
             sx={{
-              borderRadius: { xs: 3, md: 4 },
-              borderColor: isDark ? "rgba(148, 163, 184, 0.24)" : "rgba(148, 163, 184, 0.26)",
-              background: isDark
-                ? "linear-gradient(145deg, rgba(15, 23, 42, 0.88), rgba(17, 24, 39, 0.84))"
-                : "linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.97))",
+              fontWeight: 400,
+              maxWidth: 560,
+              color: isDark ? "rgba(148, 163, 184, 0.9)" : "rgba(71, 85, 105, 0.9)",
+              lineHeight: 1.6,
+            }}
+          >
+            {t("landing.v2.hero.subtitle")}
+          </Typography>
+
+          {/* Search bar */}
+          <Box sx={{ width: "100%", maxWidth: 520, mt: 1 }}>
+            <TextField
+              fullWidth
+              placeholder={t("landing.v2.hero.search")}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchRoundedIcon sx={{ color: isDark ? "rgba(148,163,184,0.6)" : "rgba(100,116,139,0.5)" }} />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 99,
+                  height: 52,
+                  bgcolor: isDark ? "rgba(30, 41, 59, 0.6)" : "rgba(255, 255, 255, 0.95)",
+                  backdropFilter: "blur(8px)",
+                  fontSize: 15,
+                  "& fieldset": {
+                    borderColor: isDark ? "rgba(148, 163, 184, 0.2)" : "rgba(148, 163, 184, 0.3)",
+                  },
+                  "&:hover fieldset": {
+                    borderColor: isDark ? "rgba(96, 165, 250, 0.4)" : "rgba(59, 130, 246, 0.35)",
+                  },
+                },
+              }}
+            />
+          </Box>
+
+          <Stack direction="row" spacing={1.5}>
+            <Button
+              component={Link}
+              href="/auth?mode=sign_up"
+              variant="contained"
+              size="large"
+              endIcon={<ArrowForwardRoundedIcon />}
+              sx={{
+                borderRadius: 99,
+                px: 3.5,
+                fontWeight: 700,
+                textTransform: "none",
+                fontSize: 15,
+                background: "linear-gradient(135deg, #2563EB, #4F46E5)",
+                boxShadow: isDark
+                  ? "0 4px 24px rgba(37, 99, 235, 0.3)"
+                  : "0 4px 24px rgba(37, 99, 235, 0.2)",
+                "&:hover": {
+                  background: "linear-gradient(135deg, #1D4ED8, #4338CA)",
+                },
+              }}
+            >
+              {t("landing.v2.hero.cta")}
+            </Button>
+            <Button
+              component={Link}
+              href="/companies"
+              variant="outlined"
+              size="large"
+              sx={{
+                borderRadius: 99,
+                px: 3,
+                fontWeight: 600,
+                textTransform: "none",
+                fontSize: 15,
+                borderColor: isDark ? "rgba(148, 163, 184, 0.25)" : "rgba(148, 163, 184, 0.4)",
+                color: isDark ? "#CBD5E1" : "#475569",
+                "&:hover": {
+                  borderColor: isDark ? "rgba(96, 165, 250, 0.5)" : "rgba(59, 130, 246, 0.4)",
+                  bgcolor: isDark ? "rgba(30, 64, 175, 0.1)" : "rgba(239, 246, 255, 0.6)",
+                },
+              }}
+            >
+              {t("landing.v2.hero.explore")}
+            </Button>
+          </Stack>
+        </Stack>
+      </Container>
+
+      {/* ── TRUSTED BY ───────────────────────────────────────── */}
+      <Container maxWidth="md" sx={{ pb: 4 }}>
+        <Typography
+          variant="caption"
+          sx={{
+            display: "block",
+            textAlign: "center",
+            color: isDark ? "rgba(148,163,184,0.45)" : "rgba(100,116,139,0.45)",
+            fontWeight: 600,
+            letterSpacing: 1.5,
+            textTransform: "uppercase",
+            mb: 1.5,
+          }}
+        >
+          {t("landing.v2.trustedBy")}
+        </Typography>
+        <TrustedMarquee isDark={isDark} />
+      </Container>
+
+      {/* ── LIVE JOB SEARCH PREVIEW ──────────────────────────── */}
+      <Container maxWidth="lg" sx={{ pb: { xs: 6, md: 9 } }}>
+        <FadeInSection>
+          <Card
+            elevation={0}
+            sx={{
+              borderRadius: 4,
+              border: "1px solid",
+              borderColor: isDark ? "rgba(148, 163, 184, 0.12)" : "rgba(148, 163, 184, 0.2)",
+              bgcolor: isDark ? "rgba(15, 23, 42, 0.6)" : "rgba(255, 255, 255, 0.8)",
+              backdropFilter: "blur(16px)",
               overflow: "hidden",
             }}
           >
-            <CardContent sx={{ p: { xs: 2.3, md: 4 } }}>
-              <Grid container spacing={3}>
-                <Grid size={{ xs: 12, md: 8 }}>
-                  <Stack spacing={2}>
-                    <Chip
-                      label={t("landing.hero.badge")}
-                      sx={{
-                        width: "fit-content",
-                        color: isDark ? "#93C5FD" : "#1D4ED8",
-                        border: `1px solid ${
-                          isDark ? "rgba(147, 197, 253, 0.36)" : "rgba(59, 130, 246, 0.34)"
-                        }`,
-                        background: isDark ? "rgba(30, 64, 175, 0.2)" : "rgba(239, 246, 255, 0.96)",
-                      }}
-                    />
+            <CardContent sx={{ p: { xs: 2.5, md: 4 } }}>
+              <Stack spacing={2}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <WorkOutlineIcon sx={{ color: isDark ? "#60A5FA" : "#3B82F6" }} />
+                  <Typography variant="h5" fontWeight={700}>
+                    {t("landing.v2.liveJobs.title")}
+                  </Typography>
+                  <Chip
+                    label={t("landing.v2.liveJobs.live")}
+                    size="small"
+                    sx={{
+                      ml: 1,
+                      bgcolor: isDark ? "rgba(34, 197, 94, 0.15)" : "rgba(34, 197, 94, 0.1)",
+                      color: "#22C55E",
+                      fontWeight: 700,
+                      fontSize: 11,
+                    }}
+                  />
+                </Stack>
 
-                    <Typography
-                      variant="h1"
-                      sx={{
-                        maxWidth: 760,
-                        color: isDark ? "#F1F5F9" : "#0F172A",
-                        fontSize: { xs: 36, md: 56 },
-                        lineHeight: 1.05,
-                      }}
-                    >
-                      {t("landing.hero.title")}
-                    </Typography>
-
-                    <Typography
-                      variant="h6"
-                      sx={{
-                        maxWidth: 760,
-                        color: isDark ? "rgba(203, 213, 225, 0.9)" : "rgba(51, 65, 85, 0.9)",
-                        fontWeight: 500,
-                      }}
-                    >
-                      {t("landing.hero.subtitle")}
-                    </Typography>
-
-                    <Typography color="text.secondary" sx={{ maxWidth: 760 }}>
-                      {t("landing.projectBrief")}
-                    </Typography>
-
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.4}>
-                      <Button
-                        component={Link}
-                        href="/auth?mode=sign_in"
-                        variant="contained"
-                        size="large"
+                <Grid container spacing={2}>
+                  {filteredJobs.map((job, i) => (
+                    <Grid key={job.id} size={{ xs: 12, sm: 6, md: 3 }}>
+                      <Card
+                        variant="outlined"
+                        sx={{
+                          height: "100%",
+                          borderRadius: 3,
+                          transition: "all 250ms ease",
+                          borderColor: isDark ? "rgba(148, 163, 184, 0.12)" : "rgba(148, 163, 184, 0.2)",
+                          "&:hover": {
+                            borderColor: isDark ? "rgba(96, 165, 250, 0.35)" : "rgba(59, 130, 246, 0.3)",
+                            transform: "translateY(-3px)",
+                            boxShadow: isDark
+                              ? "0 8px 32px rgba(0,0,0,0.3)"
+                              : "0 8px 32px rgba(0, 0, 0, 0.06)",
+                          },
+                        }}
                       >
-                        {t("landing.hero.primary")}
-                      </Button>
-                      <Button component={Link} href="/dashboard" variant="outlined" size="large">
-                        {t("landing.hero.secondary")}
-                      </Button>
-                    </Stack>
-                  </Stack>
+                        <CardContent>
+                          <Stack spacing={1}>
+                            <Chip
+                              label={job.employmentType}
+                              size="small"
+                              sx={{
+                                width: "fit-content",
+                                fontWeight: 600,
+                                fontSize: 11,
+                                bgcolor: isDark ? "rgba(96, 165, 250, 0.12)" : "rgba(219, 234, 254, 0.8)",
+                                color: isDark ? "#93C5FD" : "#1D4ED8",
+                              }}
+                            />
+                            <Typography variant="subtitle1" fontWeight={700} sx={{ lineHeight: 1.3 }}>
+                              {job.title}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {job.company} • {job.location}
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontWeight: 600,
+                                color: isDark ? "#60A5FA" : "#2563EB",
+                              }}
+                            >
+                              {job.salaryRange}
+                            </Typography>
+                            <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                              {job.tags.slice(0, 3).map((tag) => (
+                                <Chip
+                                  key={tag}
+                                  label={tag}
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{
+                                    fontSize: 11,
+                                    height: 22,
+                                    borderColor: isDark ? "rgba(148,163,184,0.15)" : "rgba(148,163,184,0.25)",
+                                  }}
+                                />
+                              ))}
+                            </Stack>
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
                 </Grid>
 
-                <Grid size={{ xs: 12, md: 4 }}>
+                <Box sx={{ textAlign: "center", pt: 1 }}>
+                  <Button
+                    component={Link}
+                    href="/dashboard"
+                    endIcon={<ArrowForwardRoundedIcon />}
+                    sx={{ textTransform: "none", fontWeight: 600 }}
+                  >
+                    {t("landing.v2.liveJobs.viewAll")}
+                  </Button>
+                </Box>
+              </Stack>
+            </CardContent>
+          </Card>
+        </FadeInSection>
+      </Container>
+
+      {/* ── FEATURES GRID ────────────────────────────────────── */}
+      <Container maxWidth="lg" sx={{ pb: { xs: 6, md: 9 } }}>
+        <FadeInSection>
+          <Stack spacing={1} sx={{ textAlign: "center", mb: 4 }}>
+            <Typography
+              variant="h3"
+              sx={{
+                fontWeight: 800,
+                color: isDark ? "#F1F5F9" : "#0F172A",
+                fontSize: { xs: 28, md: 40 },
+              }}
+            >
+              {t("landing.v2.features.title")}
+            </Typography>
+            <Typography
+              variant="body1"
+              sx={{
+                color: isDark ? "rgba(148,163,184,0.8)" : "rgba(100,116,139,0.8)",
+                maxWidth: 480,
+                mx: "auto",
+              }}
+            >
+              {t("landing.v2.features.subtitle")}
+            </Typography>
+          </Stack>
+
+          <Grid container spacing={2.5}>
+            {features.map((feat, i) => (
+              <Grid key={feat.key} size={{ xs: 12, sm: 6, md: 4 }}>
+                <FadeInSection delay={i * 80}>
                   <Card
+                    elevation={0}
                     sx={{
                       height: "100%",
                       borderRadius: 3,
-                      borderColor: isDark ? "rgba(148, 163, 184, 0.32)" : "rgba(148, 163, 184, 0.34)",
-                      background: isDark
-                        ? "linear-gradient(180deg, rgba(30, 41, 59, 0.82), rgba(15, 23, 42, 0.88))"
-                        : "linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98))",
+                      border: "1px solid",
+                      borderColor: isDark ? "rgba(148,163,184,0.1)" : "rgba(148,163,184,0.18)",
+                      bgcolor: isDark ? "rgba(15, 23, 42, 0.5)" : "rgba(255, 255, 255, 0.7)",
+                      backdropFilter: "blur(12px)",
+                      transition: "all 250ms ease",
+                      "&:hover": {
+                        borderColor: isDark ? "rgba(96,165,250,0.3)" : "rgba(59,130,246,0.25)",
+                        transform: "translateY(-2px)",
+                        boxShadow: isDark
+                          ? "0 8px 32px rgba(0,0,0,0.25)"
+                          : "0 8px 32px rgba(0,0,0,0.04)",
+                      },
                     }}
                   >
-                    <CardContent>
-                      <Stack spacing={1.3}>
-                        <Typography variant="h6" sx={{ color: isDark ? "#F1F5F9" : "#0F172A" }}>
-                          {t("landing.snapshot.title")}
+                    <CardContent sx={{ p: 3 }}>
+                      <Box
+                        sx={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 2,
+                          display: "grid",
+                          placeItems: "center",
+                          mb: 2,
+                          color: isDark ? "#60A5FA" : "#3B82F6",
+                          bgcolor: isDark ? "rgba(96, 165, 250, 0.1)" : "rgba(59, 130, 246, 0.08)",
+                        }}
+                      >
+                        {feat.icon}
+                      </Box>
+                      <Typography variant="h6" fontWeight={700} sx={{ mb: 0.5 }}>
+                        {t(`${feat.key}.title`)}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                        {t(`${feat.key}.desc`)}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </FadeInSection>
+              </Grid>
+            ))}
+          </Grid>
+        </FadeInSection>
+      </Container>
+
+      {/* ── STATS ────────────────────────────────────────────── */}
+      <Box
+        sx={{
+          py: { xs: 5, md: 7 },
+          background: isDark
+            ? "linear-gradient(180deg, rgba(15, 23, 42, 0.4), rgba(30, 41, 59, 0.3))"
+            : "linear-gradient(180deg, rgba(248, 250, 252, 0.8), rgba(241, 245, 249, 0.6))",
+        }}
+      >
+        <Container maxWidth="lg">
+          <FadeInSection>
+            <Typography
+              variant="h3"
+              sx={{
+                fontWeight: 800,
+                textAlign: "center",
+                mb: 4,
+                color: isDark ? "#F1F5F9" : "#0F172A",
+                fontSize: { xs: 28, md: 40 },
+              }}
+            >
+              {t("landing.stats.title")}
+            </Typography>
+            <Grid container>
+              {[
+                { label: t("landing.stats.item1.label"), value: 1250, suffix: "+", icon: <WorkOutlineIcon sx={{ fontSize: 28 }} /> },
+                { label: t("landing.stats.item2.label"), value: 320, suffix: "+", icon: <GroupsRoundedIcon sx={{ fontSize: 28 }} /> },
+                { label: t("landing.stats.item3.label"), value: 8900, suffix: "+", icon: <VerifiedUserRoundedIcon sx={{ fontSize: 28 }} /> },
+                { label: t("landing.stats.item4.label"), value: 4100, suffix: "+", icon: <TrendingUpRoundedIcon sx={{ fontSize: 28 }} /> },
+              ].map((stat) => (
+                <Grid key={stat.label} size={{ xs: 6, md: 3 }}>
+                  <AnimatedStatCard stat={stat} isDark={isDark} />
+                </Grid>
+              ))}
+            </Grid>
+          </FadeInSection>
+        </Container>
+      </Box>
+
+      {/* ── TESTIMONIALS ─────────────────────────────────────── */}
+      <Container maxWidth="lg" sx={{ py: { xs: 6, md: 9 } }}>
+        <FadeInSection>
+          <Stack spacing={1} sx={{ textAlign: "center", mb: 4 }}>
+            <Typography
+              variant="h3"
+              sx={{
+                fontWeight: 800,
+                color: isDark ? "#F1F5F9" : "#0F172A",
+                fontSize: { xs: 28, md: 40 },
+              }}
+            >
+              {t("landing.testimonials.title")}
+            </Typography>
+            <Typography
+              variant="body1"
+              sx={{
+                color: isDark ? "rgba(148,163,184,0.8)" : "rgba(100,116,139,0.8)",
+                maxWidth: 480,
+                mx: "auto",
+              }}
+            >
+              {t("landing.testimonials.subtitle")}
+            </Typography>
+          </Stack>
+
+          <Grid container spacing={3}>
+            {sampleTestimonials.map((t_item, i) => (
+              <Grid key={t_item.id} size={{ xs: 12, md: 4 }}>
+                <FadeInSection delay={i * 100}>
+                  <Card
+                    elevation={0}
+                    sx={{
+                      height: "100%",
+                      borderRadius: 3,
+                      border: "1px solid",
+                      borderColor: isDark ? "rgba(148,163,184,0.1)" : "rgba(148,163,184,0.18)",
+                      bgcolor: isDark ? "rgba(15, 23, 42, 0.5)" : "rgba(255, 255, 255, 0.7)",
+                      backdropFilter: "blur(12px)",
+                      transition: "all 250ms ease",
+                      "&:hover": {
+                        borderColor: isDark ? "rgba(96,165,250,0.3)" : "rgba(59,130,246,0.2)",
+                        transform: "translateY(-2px)",
+                      },
+                    }}
+                  >
+                    <CardContent sx={{ p: 3 }}>
+                      <Stack spacing={2}>
+                        <Stack direction="row" spacing={0.3}>
+                          {Array.from({ length: 5 }).map((_, si) => (
+                            <StarRoundedIcon
+                              key={si}
+                              sx={{
+                                fontSize: 17,
+                                color: si < t_item.rating ? "#FACC15" : isDark ? "rgba(148,163,184,0.2)" : "rgba(148,163,184,0.3)",
+                              }}
+                            />
+                          ))}
+                        </Stack>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontStyle: "italic",
+                            lineHeight: 1.65,
+                            color: isDark ? "rgba(203,213,225,0.85)" : "rgba(51,65,85,0.85)",
+                          }}
+                        >
+                          &ldquo;{t_item.quote}&rdquo;
                         </Typography>
-                        <Typography color="text.secondary" variant="body2">
-                          {t("landing.snapshot.subtitle")}
-                        </Typography>
-                        <LinearProgress
-                          variant="determinate"
-                          value={86}
-                          sx={{ height: 8, borderRadius: 99 }}
-                        />
-                        <Typography variant="caption" color="text.secondary">
-                          {t("landing.snapshot.progress")}
-                        </Typography>
-                        {[1, 2, 3].map((item) => (
-                          <Box key={item} sx={{ py: 0.6 }}>
-                            <Typography fontWeight={700}>
-                              {t(`landing.snapshot.item${item}.title`)}
+                        <Stack direction="row" spacing={1.2} alignItems="center">
+                          <Avatar
+                            sx={{
+                              width: 36,
+                              height: 36,
+                              fontSize: 13,
+                              fontWeight: 700,
+                              bgcolor: isDark ? "rgba(96,165,250,0.15)" : "rgba(10,102,194,0.1)",
+                              color: isDark ? "#93C5FD" : "#1D4ED8",
+                            }}
+                          >
+                            {t_item.name.split(" ").map((n) => n[0]).join("")}
+                          </Avatar>
+                          <Box>
+                            <Typography variant="body2" fontWeight={700}>
+                              {t_item.name}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {t(`landing.snapshot.item${item}.desc`)}
+                            <Typography variant="caption" color="text.secondary">
+                              {t_item.role} • {t_item.company}
                             </Typography>
                           </Box>
-                        ))}
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-
-          <Grid container spacing={2.4}>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Card sx={{ height: "100%" }}>
-                <CardContent>
-                  <Stack spacing={2}>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <ChecklistRoundedIcon color="primary" />
-                      <Typography variant="h5">{t("landing.checklist.title")}</Typography>
-                    </Stack>
-                    <Typography color="text.secondary">
-                      {t("landing.checklist.subtitle")}
-                    </Typography>
-
-                    <LinearProgress
-                      variant="determinate"
-                      value={completionPercent}
-                      sx={{ height: 9, borderRadius: 99 }}
-                    />
-                    <Typography variant="body2" color="text.secondary">
-                      {t("landing.checklist.completed")} {completionPercent}%
-                    </Typography>
-
-                    {checklistItems.map((item) => (
-                      <FormControlLabel
-                        key={item.key}
-                        control={
-                          <Checkbox
-                            checked={checklist[item.key]}
-                            onChange={() => toggleChecklistItem(item.key)}
-                          />
-                        }
-                        label={
-                          <Stack direction="row" spacing={1} alignItems="center">
-                            {item.icon}
-                            <Typography>{item.label}</Typography>
-                          </Stack>
-                        }
-                      />
-                    ))}
-
-                    <Box>
-                      <Button variant="text" onClick={resetChecklist}>
-                        {t("landing.checklist.reset")}
-                      </Button>
-                    </Box>
-                  </Stack>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Card sx={{ height: "100%" }}>
-                <CardContent>
-                  <Stack spacing={2}>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <AutoAwesomeRoundedIcon color="primary" />
-                      <Typography variant="h5">{t("landing.jobfit.title")}</Typography>
-                    </Stack>
-                    <Typography color="text.secondary">
-                      {t("landing.jobfit.subtitle")}
-                    </Typography>
-
-                    <TextField
-                      label={t("landing.jobfit.skillsLabel")}
-                      placeholder={t("landing.jobfit.skillsPlaceholder")}
-                      value={skillInput}
-                      onChange={(event) => setSkillInput(event.target.value)}
-                    />
-
-                    <FormControl fullWidth size="small">
-                      <InputLabel id="home-role-filter-label">
-                        {t("landing.jobfit.roleLabel")}
-                      </InputLabel>
-                      <Select
-                        labelId="home-role-filter-label"
-                        label={t("landing.jobfit.roleLabel")}
-                        value={roleFilter}
-                        onChange={(event) => setRoleFilter(event.target.value as RoleFilter)}
-                      >
-                        <MenuItem value="all">{t("landing.jobfit.role.all")}</MenuItem>
-                        <MenuItem value="frontend">{t("landing.jobfit.role.frontend")}</MenuItem>
-                        <MenuItem value="backend">{t("landing.jobfit.role.backend")}</MenuItem>
-                        <MenuItem value="qa">{t("landing.jobfit.role.qa")}</MenuItem>
-                        <MenuItem value="devops">{t("landing.jobfit.role.devops")}</MenuItem>
-                      </Select>
-                    </FormControl>
-
-                    <Stack direction="row" spacing={2}>
-                      <Chip
-                        color="primary"
-                        label={`${t("landing.jobfit.matches")}: ${topRecommendations.length}`}
-                      />
-                      <Chip
-                        color="secondary"
-                        label={`${t("landing.jobfit.score")}: ${averageScore}%`}
-                      />
-                    </Stack>
-
-                    {topRecommendations.length > 0 ? (
-                      <Stack spacing={1}>
-                        {topRecommendations.map((job) => (
-                          <Card key={job.id} variant="outlined">
-                            <CardContent sx={{ py: "12px !important" }}>
-                              <Typography fontWeight={700}>{job.title}</Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {job.company} • {job.location}
-                              </Typography>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </Stack>
-                    ) : (
-                      <Typography color="text.secondary">
-                        {t("landing.jobfit.empty")}
-                      </Typography>
-                    )}
-
-                    <Box>
-                      <Button component={Link} href="/dashboard" variant="outlined">
-                        {t("landing.jobfit.openDashboard")}
-                      </Button>
-                    </Box>
-                  </Stack>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
-
-          <Card>
-            <CardContent>
-              <Stack spacing={1} sx={{ mb: 2.2 }}>
-                <Typography variant="h4">{t("landing.features.title")}</Typography>
-                <Typography color="text.secondary">{t("landing.features.subtitle")}</Typography>
-              </Stack>
-
-              <Grid container spacing={2}>
-                {featureKeys.slice(0, 4).map((key) => (
-                  <Grid key={key} size={{ xs: 12, md: 6 }}>
-                    <Card variant="outlined">
-                      <CardContent>
-                        <Stack direction="row" spacing={1.2} alignItems="center" sx={{ mb: 0.8 }}>
-                          {key === "pipeline" ? (
-                            <WorkHistoryRoundedIcon color="primary" fontSize="small" />
-                          ) : (
-                            <VerifiedUserRoundedIcon color="primary" fontSize="small" />
-                          )}
-                          <Typography fontWeight={700}>
-                            {t(`landing.feature.${key}.title`)}
-                          </Typography>
                         </Stack>
-                        <Typography color="text.secondary">
-                          {t(`landing.feature.${key}.desc`)}
-                        </Typography>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent>
-              <Typography variant="h4" sx={{ mb: 2 }}>{t("landing.accounts.title")}</Typography>
-              <Grid container spacing={2}>
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <Card variant="outlined" sx={{ height: "100%" }}>
-                    <CardContent>
-                      <Typography variant="h5" sx={{ mb: 1 }}>{t("landing.accounts.seeker.title")}</Typography>
-                      <Typography color="text.secondary" sx={{ mb: 1.4 }}>
-                        {t("landing.accounts.seeker.desc")}
-                      </Typography>
-                      <Stack spacing={0.6}>
-                        {[1, 2, 3].map((item) => (
-                          <Typography key={item} variant="body2">• {t(`landing.accounts.seeker.point${item}`)}</Typography>
-                        ))}
                       </Stack>
                     </CardContent>
                   </Card>
-                </Grid>
-
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <Card variant="outlined" sx={{ height: "100%" }}>
-                    <CardContent>
-                      <Typography variant="h5" sx={{ mb: 1 }}>{t("landing.accounts.employer.title")}</Typography>
-                      <Typography color="text.secondary" sx={{ mb: 1.4 }}>
-                        {t("landing.accounts.employer.desc")}
-                      </Typography>
-                      <Stack spacing={0.6}>
-                        {[1, 2, 3].map((item) => (
-                          <Typography key={item} variant="body2">• {t(`landing.accounts.employer.point${item}`)}</Typography>
-                        ))}
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                </Grid>
+                </FadeInSection>
               </Grid>
-            </CardContent>
-          </Card>
+            ))}
+          </Grid>
+        </FadeInSection>
+      </Container>
 
-          <Card
-            sx={{
-              borderColor: isDark ? "rgba(148, 163, 184, 0.3)" : "rgba(148, 163, 184, 0.28)",
-              background: isDark
-                ? "linear-gradient(90deg, rgba(30, 41, 59, 0.74), rgba(15, 23, 42, 0.8))"
-                : "linear-gradient(90deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.98))",
-            }}
-          >
-            <CardContent>
-              <Stack spacing={2} alignItems={{ xs: "flex-start", md: "center" }}>
-                <Typography variant="h4">{t("landing.cta.title")}</Typography>
-                <Typography color="text.secondary" sx={{ maxWidth: 740, textAlign: { md: "center" } }}>
-                  {t("landing.cta.subtitle")}
-                </Typography>
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.2}>
-                  <Button
-                    component={Link}
-                    href="/auth?mode=sign_in"
-                    variant="contained"
-                    size="large"
-                  >
-                    {t("landing.cta.primary")}
-                  </Button>
-                  <Button component={Link} href="/dashboard" variant="outlined" size="large">
-                    {t("landing.cta.secondary")}
-                  </Button>
-                </Stack>
+      {/* ── NEWSLETTER ───────────────────────────────────────── */}
+      <Box
+        sx={{
+          py: { xs: 6, md: 8 },
+          background: isDark
+            ? "linear-gradient(135deg, rgba(30, 64, 175, 0.12), rgba(124, 58, 237, 0.08))"
+            : "linear-gradient(135deg, rgba(239, 246, 255, 0.95), rgba(245, 243, 255, 0.9))",
+        }}
+      >
+        <Container maxWidth="sm">
+          <FadeInSection>
+            <Stack spacing={2.5} alignItems="center" textAlign="center">
+              <MarkEmailReadRoundedIcon
+                sx={{
+                  fontSize: 40,
+                  color: isDark ? "#60A5FA" : "#3B82F6",
+                }}
+              />
+              <Typography
+                variant="h4"
+                sx={{
+                  fontWeight: 800,
+                  color: isDark ? "#F1F5F9" : "#0F172A",
+                  fontSize: { xs: 24, md: 32 },
+                }}
+              >
+                {t("landing.v2.newsletter.title")}
+              </Typography>
+              <Typography
+                variant="body1"
+                sx={{ color: isDark ? "rgba(148,163,184,0.8)" : "rgba(100,116,139,0.8)" }}
+              >
+                {t("landing.v2.newsletter.subtitle")}
+              </Typography>
+
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.2} sx={{ width: "100%", maxWidth: 440 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder={t("landing.v2.newsletter.placeholder")}
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleEmailSubmit()}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: 99,
+                      bgcolor: isDark ? "rgba(30, 41, 59, 0.5)" : "#fff",
+                    },
+                  }}
+                />
+                <Button
+                  variant="contained"
+                  onClick={handleEmailSubmit}
+                  sx={{
+                    borderRadius: 99,
+                    px: 3,
+                    whiteSpace: "nowrap",
+                    textTransform: "none",
+                    fontWeight: 700,
+                    background: "linear-gradient(135deg, #2563EB, #4F46E5)",
+                  }}
+                >
+                  {t("landing.v2.newsletter.button")}
+                </Button>
               </Stack>
-            </CardContent>
-          </Card>
-        </Stack>
+
+              {emailSubmitted && (
+                <Typography variant="body2" sx={{ color: "#22C55E", fontWeight: 600 }}>
+                  {t("landing.v2.newsletter.success")}
+                </Typography>
+              )}
+            </Stack>
+          </FadeInSection>
+        </Container>
+      </Box>
+
+      {/* ── FINAL CTA ────────────────────────────────────────── */}
+      <Container maxWidth="md" sx={{ py: { xs: 8, md: 12 } }}>
+        <FadeInSection>
+          <Stack spacing={3} alignItems="center" textAlign="center">
+            <Typography
+              variant="h3"
+              sx={{
+                fontWeight: 800,
+                color: isDark ? "#F1F5F9" : "#0F172A",
+                fontSize: { xs: 28, md: 44 },
+              }}
+            >
+              {t("landing.v2.cta.title")}
+            </Typography>
+            <Typography
+              variant="body1"
+              sx={{
+                color: isDark ? "rgba(148,163,184,0.8)" : "rgba(100,116,139,0.8)",
+                maxWidth: 500,
+              }}
+            >
+              {t("landing.v2.cta.subtitle")}
+            </Typography>
+            <Stack direction="row" spacing={1.5}>
+              <Button
+                component={Link}
+                href="/auth?mode=sign_up"
+                variant="contained"
+                size="large"
+                endIcon={<ArrowForwardRoundedIcon />}
+                sx={{
+                  borderRadius: 99,
+                  px: 4,
+                  fontWeight: 700,
+                  textTransform: "none",
+                  background: "linear-gradient(135deg, #2563EB, #4F46E5)",
+                  boxShadow: isDark
+                    ? "0 4px 24px rgba(37, 99, 235, 0.3)"
+                    : "0 4px 24px rgba(37, 99, 235, 0.2)",
+                }}
+              >
+                {t("landing.v2.cta.primary")}
+              </Button>
+              <Button
+                component={Link}
+                href="/salary"
+                variant="outlined"
+                size="large"
+                sx={{
+                  borderRadius: 99,
+                  px: 3,
+                  fontWeight: 600,
+                  textTransform: "none",
+                  borderColor: isDark ? "rgba(148,163,184,0.25)" : "rgba(148,163,184,0.4)",
+                  color: isDark ? "#CBD5E1" : "#475569",
+                }}
+              >
+                {t("landing.v2.cta.secondary")}
+              </Button>
+            </Stack>
+          </Stack>
+        </FadeInSection>
+      </Container>
+
+      {/* Footer */}
+      <Container maxWidth="lg">
+        <Footer language={language} isDark={isDark} />
       </Container>
     </Box>
   );

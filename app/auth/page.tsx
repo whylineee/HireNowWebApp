@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -16,6 +16,7 @@ import {
   DialogTitle,
   FormControl,
   InputLabel,
+  LinearProgress,
   MenuItem,
   Select,
   Stack,
@@ -25,7 +26,6 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import LanguageRoundedIcon from "@mui/icons-material/LanguageRounded";
 import type { AppLanguage } from "@/lib/app-settings";
 import { useAppSettings } from "@/lib/app-settings";
 import { translate } from "@/lib/i18n";
@@ -35,6 +35,21 @@ import {
   signUp,
   type UserRole,
 } from "@/lib/local-auth";
+import Navbar from "@/app/navbar";
+
+function getPasswordStrength(pw: string): { score: number; label: string; color: string; key: string } {
+  let score = 0;
+  if (pw.length >= 6) score++;
+  if (pw.length >= 10) score++;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+  if (/\d/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+
+  if (score <= 1) return { score: 20, label: "Weak", color: "#EF4444", key: "auth.strength.weak" };
+  if (score === 2) return { score: 45, label: "Fair", color: "#F59E0B", key: "auth.strength.fair" };
+  if (score === 3) return { score: 70, label: "Good", color: "#10B981", key: "auth.strength.good" };
+  return { score: 100, label: "Strong", color: "#059669", key: "auth.strength.strong" };
+}
 
 type AuthMode = "sign_in" | "sign_up";
 
@@ -180,11 +195,13 @@ export default function AuthPage() {
     }, 650);
   }
 
+  const pwStrength = useMemo(() => getPasswordStrength(password), [password]);
+
   return (
     <Box
       sx={{
         minHeight: "100vh",
-        py: { xs: 4, md: 8 },
+        py: { xs: 1.5, md: 2 },
         background: isDark
           ? "radial-gradient(circle at top left, #15243E 0%, #0D162A 50%, #0A1220 100%)"
           : "radial-gradient(circle at top left, #EAF2FF 0%, #F3F7FF 55%, #F8FAFF 100%)",
@@ -192,36 +209,7 @@ export default function AuthPage() {
     >
       <Container maxWidth="sm">
         <Stack spacing={2.2}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Button component={Link} href="/" variant="text">
-              {t("common.home")}
-            </Button>
-            <Box
-              sx={{
-                height: 40,
-                borderRadius: 2,
-                border: "1px solid",
-                borderColor: "divider",
-                px: 1,
-                display: "flex",
-                alignItems: "center",
-                gap: 0.6,
-                bgcolor: "background.paper",
-              }}
-            >
-              <LanguageRoundedIcon color="action" fontSize="small" />
-              <Select
-                value={language}
-                variant="standard"
-                disableUnderline
-                onChange={(event) => setLanguage(event.target.value as AppLanguage)}
-                sx={{ minWidth: 122, fontWeight: 600 }}
-              >
-                <MenuItem value="en">{t("settings.language.en")}</MenuItem>
-                <MenuItem value="uk">{t("settings.language.uk")}</MenuItem>
-              </Select>
-            </Box>
-          </Stack>
+          <Navbar />
 
           <Card
             elevation={0}
@@ -284,6 +272,36 @@ export default function AuthPage() {
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                     />
+
+                    {mode === "sign_up" && password.length > 0 && (
+                      <Box>
+                        <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                          <Typography variant="caption" color="text.secondary">
+                            {t("auth.passwordStrength")}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            sx={{ fontWeight: 700, color: pwStrength.color }}
+                          >
+                            {t(pwStrength.key)}
+                          </Typography>
+                        </Stack>
+                        <LinearProgress
+                          variant="determinate"
+                          value={pwStrength.score}
+                          sx={{
+                            height: 6,
+                            borderRadius: 3,
+                            bgcolor: isDark ? "rgba(30, 41, 59, 0.6)" : "rgba(241, 245, 249, 0.9)",
+                            '& .MuiLinearProgress-bar': {
+                              bgcolor: pwStrength.color,
+                              borderRadius: 3,
+                              transition: 'width 400ms, background-color 400ms',
+                            },
+                          }}
+                        />
+                      </Box>
+                    )}
 
                     {mode === "sign_up" ? (
                       <TextField

@@ -460,3 +460,228 @@ export const sampleAnalytics: AnalyticsPoint[] = [
   { label: "W5", applications: 66, interviews: 27, offers: 10, hireRate: 15 },
   { label: "W6", applications: 71, interviews: 29, offers: 12, hireRate: 17 },
 ];
+
+export type Company = {
+  id: string;
+  name: string;
+  industry: string;
+  location: string;
+  openPositions: number;
+  rating: number;
+  description: string;
+  techStack: string[];
+  size: string;
+};
+
+export const sampleCompanies: Company[] = [
+  {
+    id: "comp-1",
+    name: "NovaLabs",
+    industry: "SaaS",
+    location: "Remote, EU",
+    openPositions: 5,
+    rating: 4.7,
+    description: "Product-led B2B platform for developer tooling with focus on CI/CD automation.",
+    techStack: ["React", "Node.js", "AWS", "PostgreSQL"],
+    size: "50-200",
+  },
+  {
+    id: "comp-2",
+    name: "CloudNest",
+    industry: "Fintech",
+    location: "Warsaw, Poland",
+    openPositions: 3,
+    rating: 4.5,
+    description: "Digital banking infrastructure for European neobanks and fintechs.",
+    techStack: ["Go", "Kubernetes", "Kafka", "React"],
+    size: "200-500",
+  },
+  {
+    id: "comp-3",
+    name: "SprintCore",
+    industry: "Consulting",
+    location: "Remote, Worldwide",
+    openPositions: 8,
+    rating: 4.3,
+    description: "Engineering consultancy specializing in QA automation and testing strategy.",
+    techStack: ["Playwright", "Cypress", "TypeScript", "Python"],
+    size: "20-50",
+  },
+  {
+    id: "comp-4",
+    name: "DeployNow",
+    industry: "Startup",
+    location: "Berlin, Germany",
+    openPositions: 4,
+    rating: 4.8,
+    description: "One-click deployment platform for modern microservice architectures.",
+    techStack: ["Terraform", "AWS", "Docker", "Next.js"],
+    size: "10-20",
+  },
+  {
+    id: "comp-5",
+    name: "PulseGrid",
+    industry: "E-commerce",
+    location: "Kyiv, Ukraine",
+    openPositions: 6,
+    rating: 4.4,
+    description: "Headless commerce engine for high-traffic marketplaces across Eastern Europe.",
+    techStack: ["Next.js", "GraphQL", "Redis", "Elasticsearch"],
+    size: "100-200",
+  },
+  {
+    id: "comp-6",
+    name: "SkyMetrics",
+    industry: "SaaS",
+    location: "Prague, Czech Republic",
+    openPositions: 2,
+    rating: 4.6,
+    description: "Real-time analytics platform for product and growth teams in SaaS companies.",
+    techStack: ["Python", "BigQuery", "React", "Airflow"],
+    size: "50-100",
+  },
+];
+
+export type SalaryEntry = {
+  role: string;
+  location: string;
+  min: number;
+  median: number;
+  max: number;
+};
+
+export const salaryData: SalaryEntry[] = [
+  { role: "Frontend", location: "Remote EU", min: 2800, median: 4200, max: 6000 },
+  { role: "Frontend", location: "Ukraine", min: 1800, median: 3000, max: 4500 },
+  { role: "Frontend", location: "Poland", min: 2500, median: 3800, max: 5500 },
+  { role: "Frontend", location: "Germany", min: 4000, median: 5500, max: 7500 },
+  { role: "Frontend", location: "USA", min: 6000, median: 8500, max: 12000 },
+  { role: "Backend", location: "Remote EU", min: 3200, median: 4800, max: 7000 },
+  { role: "Backend", location: "Ukraine", min: 2200, median: 3500, max: 5200 },
+  { role: "Backend", location: "Poland", min: 3000, median: 4200, max: 6200 },
+  { role: "Backend", location: "Germany", min: 4500, median: 6000, max: 8500 },
+  { role: "Backend", location: "USA", min: 7000, median: 9500, max: 14000 },
+  { role: "QA", location: "Remote EU", min: 2200, median: 3400, max: 5000 },
+  { role: "QA", location: "Ukraine", min: 1500, median: 2500, max: 3800 },
+  { role: "QA", location: "Poland", min: 2000, median: 3200, max: 4600 },
+  { role: "QA", location: "Germany", min: 3500, median: 4800, max: 6500 },
+  { role: "QA", location: "USA", min: 5000, median: 7000, max: 10000 },
+  { role: "DevOps", location: "Remote EU", min: 3500, median: 5200, max: 7500 },
+  { role: "DevOps", location: "Ukraine", min: 2500, median: 3800, max: 5500 },
+  { role: "DevOps", location: "Poland", min: 3200, median: 4500, max: 6500 },
+  { role: "DevOps", location: "Germany", min: 5000, median: 6500, max: 9000 },
+  { role: "DevOps", location: "USA", min: 7500, median: 10000, max: 15000 },
+  { role: "Designer", location: "Remote EU", min: 2000, median: 3200, max: 4800 },
+  { role: "Designer", location: "Ukraine", min: 1200, median: 2200, max: 3400 },
+  { role: "Designer", location: "Poland", min: 1800, median: 2800, max: 4200 },
+  { role: "Designer", location: "Germany", min: 3000, median: 4500, max: 6500 },
+  { role: "Designer", location: "USA", min: 5000, median: 7000, max: 10000 },
+  { role: "Data Engineer", location: "Remote EU", min: 3200, median: 4800, max: 7000 },
+  { role: "Data Engineer", location: "Ukraine", min: 2200, median: 3500, max: 5000 },
+  { role: "Data Engineer", location: "Poland", min: 3000, median: 4200, max: 6000 },
+  { role: "Data Engineer", location: "Germany", min: 4500, median: 6200, max: 8800 },
+  { role: "Data Engineer", location: "USA", min: 7000, median: 9500, max: 14000 },
+];
+
+export type BlogArticle = {
+  id: string;
+  title: string;
+  category: string;
+  readingTime: string;
+  excerpt: string;
+  author: string;
+  date: string;
+};
+
+export const sampleArticles: BlogArticle[] = [
+  {
+    id: "blog-1",
+    title: "How to Ace Your Frontend Interview in 2026",
+    category: "Career",
+    readingTime: "8 min",
+    excerpt: "Key strategies and practical tips for preparing for modern frontend interviews including system design rounds.",
+    author: "Olena Marchenko",
+    date: "2026-02-14",
+  },
+  {
+    id: "blog-2",
+    title: "TypeScript 6.0: What Changed and Why It Matters",
+    category: "Tech",
+    readingTime: "6 min",
+    excerpt: "A deep dive into the latest TypeScript features and how they affect your daily development workflow.",
+    author: "Artem Bondarenko",
+    date: "2026-02-10",
+  },
+  {
+    id: "blog-3",
+    title: "Building an Inclusive Hiring Pipeline",
+    category: "Hiring",
+    readingTime: "10 min",
+    excerpt: "Practical approaches to reducing bias in screening, interviews, and offer decisions for engineering teams.",
+    author: "Nina Klym",
+    date: "2026-02-06",
+  },
+  {
+    id: "blog-4",
+    title: "Remote-First Engineering Culture: A Playbook",
+    category: "Remote",
+    readingTime: "12 min",
+    excerpt: "Lessons learned from scaling a fully distributed team across 8 time zones without losing velocity.",
+    author: "Dmytro Koval",
+    date: "2026-01-28",
+  },
+  {
+    id: "blog-5",
+    title: "From Junior to Senior in 3 Years: My Path",
+    category: "Career",
+    readingTime: "7 min",
+    excerpt: "An honest reflection on what accelerated my growth and what I wish I had done differently early on.",
+    author: "Kateryna Bondar",
+    date: "2026-01-20",
+  },
+  {
+    id: "blog-6",
+    title: "Why We Switched from REST to GraphQL",
+    category: "Tech",
+    readingTime: "9 min",
+    excerpt: "The tradeoffs, migration strategy, and measurable outcomes after migrating our API layer at PulseGrid.",
+    author: "Nazar Hnatiuk",
+    date: "2026-01-15",
+  },
+];
+
+export type Testimonial = {
+  id: string;
+  name: string;
+  role: string;
+  company: string;
+  quote: string;
+  rating: number;
+};
+
+export const sampleTestimonials: Testimonial[] = [
+  {
+    id: "test-1",
+    name: "Olena Savchuk",
+    role: "Frontend Engineer",
+    company: "NovaLabs",
+    quote: "HireNow helped me land my dream role in just 2 weeks. The job matching was spot-on and the pipeline tracking kept me organized throughout the process.",
+    rating: 5,
+  },
+  {
+    id: "test-2",
+    name: "Andriy Melnyk",
+    role: "Engineering Manager",
+    company: "CloudNest",
+    quote: "We reduced our time-to-hire by 40% after switching to HireNow. The candidate pipeline and team collaboration features are exactly what we needed.",
+    rating: 5,
+  },
+  {
+    id: "test-3",
+    name: "Yulia Hnatenko",
+    role: "QA Lead",
+    company: "SprintCore",
+    quote: "Finally a hiring platform that understands tech roles. The smart matching actually works — every candidate we received was relevant and well-qualified.",
+    rating: 4,
+  },
+];

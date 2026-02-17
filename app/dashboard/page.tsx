@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   Alert,
   Avatar,
+  Badge,
   Box,
   Button,
   Card,
@@ -19,6 +20,7 @@ import {
   Divider,
   FormControl,
   Grid,
+  IconButton,
   InputLabel,
   LinearProgress,
   List,
@@ -28,6 +30,7 @@ import {
   ListItemIcon,
   ListItemText,
   MenuItem,
+  Popover,
   Select,
   Stack,
   Table,
@@ -777,6 +780,8 @@ export default function DashboardPage() {
     error: "",
   });
 
+  const [notifAnchor, setNotifAnchor] = useState<HTMLButtonElement | null>(null);
+
   useEffect(() => {
     if (!session) {
       router.replace("/auth");
@@ -1480,10 +1485,10 @@ export default function DashboardPage() {
       webhooks: prev.webhooks.map((webhook) =>
         webhook.id === webhookId
           ? {
-              ...webhook,
-              lastDelivery: new Date().toISOString(),
-              failures: 0,
-            }
+            ...webhook,
+            lastDelivery: new Date().toISOString(),
+            failures: 0,
+          }
           : webhook,
       ),
       activity: withActivity(
@@ -3030,11 +3035,10 @@ export default function DashboardPage() {
                           <Typography fontWeight={600}>{providerLabel}</Typography>
                           <Typography variant="body2" color="text.secondary">
                             {item.connected
-                              ? `${item.username} ${t("integration.connectedSuffix")}${
-                                  item.connectedAt
-                                    ? ` ${formatDate(item.connectedAt, locale)}`
-                                    : ""
-                                }`
+                              ? `${item.username} ${t("integration.connectedSuffix")}${item.connectedAt
+                                ? ` ${formatDate(item.connectedAt, locale)}`
+                                : ""
+                              }`
                               : t("dashboard.integrations.notConnected")}
                           </Typography>
                           {item.connected && item.profileUrl ? (
@@ -3400,6 +3404,70 @@ export default function DashboardPage() {
                     </Select>
                   </Box>
 
+                  <IconButton
+                    onClick={(e) => setNotifAnchor(e.currentTarget)}
+                    size="small"
+                    aria-label="notifications"
+                  >
+                    <Badge badgeContent={unreadNotifications} color="error" max={9}>
+                      <NotificationsOutlinedIcon />
+                    </Badge>
+                  </IconButton>
+                  <Popover
+                    open={Boolean(notifAnchor)}
+                    anchorEl={notifAnchor}
+                    onClose={() => setNotifAnchor(null)}
+                    anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                    transformOrigin={{ vertical: "top", horizontal: "right" }}
+                    slotProps={{ paper: { sx: { width: 340, maxHeight: 400, borderRadius: 2 } } }}
+                  >
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ p: 1.5 }}>
+                      <Typography variant="subtitle2" fontWeight={700}>
+                        {t("dashboard.notifications.title")}
+                      </Typography>
+                      {unreadNotifications > 0 && (
+                        <Button
+                          size="small"
+                          onClick={() => {
+                            setWorkspace((prev) => ({
+                              ...prev,
+                              notifications: prev.notifications.map((n) => ({ ...n, read: true })),
+                            }));
+                            setNotifAnchor(null);
+                          }}
+                        >
+                          {t("dashboard.notifications.markAllRead")}
+                        </Button>
+                      )}
+                    </Stack>
+                    <Divider />
+                    {workspace.notifications.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: "center" }}>
+                        {t("dashboard.notifications.empty")}
+                      </Typography>
+                    ) : (
+                      <List dense disablePadding sx={{ overflow: "auto" }}>
+                        {workspace.notifications.slice(0, 8).map((n) => (
+                          <ListItem
+                            key={n.id}
+                            sx={{
+                              bgcolor: n.read ? undefined : "action.hover",
+                              borderBottom: "1px solid",
+                              borderColor: "divider",
+                            }}
+                          >
+                            <ListItemText
+                              primary={n.title}
+                              secondary={n.description}
+                              primaryTypographyProps={{ variant: "body2", fontWeight: n.read ? 400 : 600 }}
+                              secondaryTypographyProps={{ variant: "caption", noWrap: true }}
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    )}
+                  </Popover>
+
                   <Button component={Link} href="/" variant="outlined">
                     {t("common.home")}
                   </Button>
@@ -3447,6 +3515,58 @@ export default function DashboardPage() {
 
             <Grid size={{ xs: 12, md: 9 }}>
               <Stack spacing={3}>
+                {/* Welcome banner */}
+                <Card
+                  sx={{
+                    borderRadius: 3,
+                    background: themeMode === "dark"
+                      ? "linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(124, 58, 237, 0.1))"
+                      : "linear-gradient(135deg, rgba(239, 246, 255, 0.98), rgba(249, 245, 255, 0.95))",
+                    border: "1px solid",
+                    borderColor: themeMode === "dark"
+                      ? "rgba(96, 165, 250, 0.2)"
+                      : "rgba(147, 197, 253, 0.35)",
+                  }}
+                >
+                  <CardContent sx={{ py: 2.5 }}>
+                    <Stack spacing={1.5}>
+                      <Typography variant="h5" fontWeight={800} sx={{ color: themeMode === "dark" ? "#F1F5F9" : "#0F172A" }}>
+                        {t("dashboard.welcome")}, {session.fullName.split(" ")[0]}! 👋
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: themeMode === "dark" ? "rgba(203, 213, 225, 0.85)" : "rgba(51, 65, 85, 0.85)" }}>
+                        {t("dashboard.welcome.subtitle")}
+                      </Typography>
+                      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                        {(session.role === "job_seeker"
+                          ? [
+                            { label: t("dashboard.quickAction.jobs"), tab: "jobs" as const },
+                            { label: t("dashboard.quickAction.resume"), tab: "my_account" as const },
+                            { label: t("dashboard.quickAction.messages"), tab: "messages" as const },
+                          ]
+                          : [
+                            { label: t("dashboard.quickAction.postJob"), tab: "job_posts" as const },
+                            { label: t("dashboard.quickAction.candidates"), tab: "candidates" as const },
+                            { label: t("dashboard.quickAction.analytics"), tab: "analytics" as const },
+                          ]
+                        ).map((action) => (
+                          <Chip
+                            key={action.tab}
+                            label={action.label}
+                            onClick={() => setActiveTab(action.tab)}
+                            color="primary"
+                            variant={currentTab === action.tab ? "filled" : "outlined"}
+                            sx={{
+                              fontWeight: 600,
+                              transition: "all 200ms",
+                              "&:hover": { transform: "translateY(-1px)" },
+                            }}
+                          />
+                        ))}
+                      </Stack>
+                    </Stack>
+                  </CardContent>
+                </Card>
+
                 {currentTab === "overview" ? renderOverview(session.role) : null}
                 {currentTab === "jobs" ? renderJobs() : null}
                 {currentTab === "applications" ? renderApplications() : null}
