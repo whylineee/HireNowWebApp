@@ -1786,56 +1786,134 @@ export default function DashboardPage() {
   }
 
   function renderOverview(role: UserRole) {
+    const isDark = themeMode === "dark";
+    const statCards = role === "job_seeker"
+      ? [
+        {
+          label: t("dashboard.metric.openJobs"),
+          value: workspace.jobs.length,
+          icon: <WorkOutlineIcon sx={{ fontSize: 22 }} />,
+          gradient: "linear-gradient(135deg, #3B82F6, #1D4ED8)",
+          bg: isDark ? "rgba(59,130,246,0.12)" : "rgba(219,234,254,0.6)",
+        },
+        {
+          label: t("dashboard.metric.savedJobs"),
+          value: workspace.savedJobs.length,
+          icon: <BookmarkBorderIcon sx={{ fontSize: 22 }} />,
+          gradient: "linear-gradient(135deg, #8B5CF6, #6D28D9)",
+          bg: isDark ? "rgba(139,92,246,0.12)" : "rgba(237,233,254,0.6)",
+        },
+        {
+          label: t("dashboard.metric.unreadMessages"),
+          value: workspace.messages.filter((item) => item.unread).length,
+          icon: <EmailOutlinedIcon sx={{ fontSize: 22 }} />,
+          gradient: "linear-gradient(135deg, #10B981, #059669)",
+          bg: isDark ? "rgba(16,185,129,0.12)" : "rgba(209,250,229,0.6)",
+        },
+      ]
+      : [
+        {
+          label: t("dashboard.metric.openJobs"),
+          value: workspace.jobs.length,
+          icon: <WorkOutlineIcon sx={{ fontSize: 22 }} />,
+          gradient: "linear-gradient(135deg, #3B82F6, #1D4ED8)",
+          bg: isDark ? "rgba(59,130,246,0.12)" : "rgba(219,234,254,0.6)",
+        },
+        {
+          label: t("dashboard.metric.candidates"),
+          value: workspace.candidates.length,
+          icon: <GroupsOutlinedIcon sx={{ fontSize: 22 }} />,
+          gradient: "linear-gradient(135deg, #8B5CF6, #6D28D9)",
+          bg: isDark ? "rgba(139,92,246,0.12)" : "rgba(237,233,254,0.6)",
+        },
+        {
+          label: t("dashboard.metric.unreadMessages"),
+          value: workspace.messages.filter((item) => item.unread).length,
+          icon: <EmailOutlinedIcon sx={{ fontSize: 22 }} />,
+          gradient: "linear-gradient(135deg, #10B981, #059669)",
+          bg: isDark ? "rgba(16,185,129,0.12)" : "rgba(209,250,229,0.6)",
+        },
+      ];
+
     return (
       <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: 4 }}>
-          <Card>
-            <CardContent>
-              <Typography color="text.secondary">{t("dashboard.metric.openJobs")}</Typography>
-              <Typography variant="h4">{workspace.jobs.length}</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid size={{ xs: 12, md: 4 }}>
-          <Card>
-            <CardContent>
-              <Typography color="text.secondary">
-                {role === "job_seeker"
-                  ? t("dashboard.metric.savedJobs")
-                  : t("dashboard.metric.candidates")}
-              </Typography>
-              <Typography variant="h4">
-                {role === "job_seeker" ? workspace.savedJobs.length : workspace.candidates.length}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid size={{ xs: 12, md: 4 }}>
-          <Card>
-            <CardContent>
-              <Typography color="text.secondary">
-                {t("dashboard.metric.unreadMessages")}
-              </Typography>
-              <Typography variant="h4">
-                {workspace.messages.filter((item) => item.unread).length}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+        {statCards.map((card, i) => (
+          <Grid key={i} size={{ xs: 12, md: 4 }}>
+            <Card
+              elevation={0}
+              sx={{
+                border: "1px solid",
+                borderColor: isDark ? "rgba(148,163,184,0.1)" : "rgba(148,163,184,0.18)",
+                bgcolor: card.bg,
+                borderRadius: 3,
+                transition: "transform 200ms, box-shadow 200ms",
+                "&:hover": { transform: "translateY(-2px)", boxShadow: isDark ? "0 8px 24px rgba(0,0,0,0.3)" : "0 8px 24px rgba(15,23,42,0.08)" },
+              }}
+            >
+              <CardContent sx={{ p: 2.5 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
+                      {card.label}
+                    </Typography>
+                    <Typography variant="h3" fontWeight={800} sx={{ color: isDark ? "#F1F5F9" : "#0F172A", lineHeight: 1 }}>
+                      {card.value}
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 2,
+                      display: "grid",
+                      placeItems: "center",
+                      background: card.gradient,
+                      color: "#fff",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {card.icon}
+                  </Box>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
 
         {role === "job_seeker" ? (
           <Grid size={{ xs: 12 }}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  {t("dashboard.profile.title")}
-                </Typography>
+            <Card
+              elevation={0}
+              sx={{
+                border: "1px solid",
+                borderColor: isDark ? "rgba(148,163,184,0.1)" : "rgba(148,163,184,0.18)",
+                borderRadius: 3,
+              }}
+            >
+              <CardContent sx={{ p: 2.5 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+                  <Typography variant="h6" fontWeight={700}>
+                    {t("dashboard.profile.title")}
+                  </Typography>
+                  <Typography variant="h6" fontWeight={800} sx={{ color: isDark ? "#60A5FA" : "#2563EB" }}>
+                    {profileCompletion}%
+                  </Typography>
+                </Stack>
                 <LinearProgress
                   variant="determinate"
                   value={profileCompletion}
-                  sx={{ height: 10, borderRadius: 5, mb: 1.5 }}
+                  sx={{
+                    height: 8,
+                    borderRadius: 4,
+                    mb: 1,
+                    bgcolor: isDark ? "rgba(30,41,59,0.6)" : "rgba(241,245,249,0.9)",
+                    "& .MuiLinearProgress-bar": {
+                      background: "linear-gradient(90deg, #3B82F6, #8B5CF6)",
+                      borderRadius: 4,
+                    },
+                  }}
                 />
-                <Typography color="text.secondary">
+                <Typography variant="body2" color="text.secondary">
                   {t("dashboard.profile.subtitle")}
                 </Typography>
               </CardContent>
@@ -1843,17 +1921,39 @@ export default function DashboardPage() {
           </Grid>
         ) : (
           <Grid size={{ xs: 12 }}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
+            <Card
+              elevation={0}
+              sx={{
+                border: "1px solid",
+                borderColor: isDark ? "rgba(148,163,184,0.1)" : "rgba(148,163,184,0.18)",
+                borderRadius: 3,
+              }}
+            >
+              <CardContent sx={{ p: 2.5 }}>
+                <Typography variant="h6" fontWeight={700} gutterBottom>
                   {t("dashboard.hiring.title")}
                 </Typography>
-                <Stack direction={{ xs: "column", md: "row" }} spacing={1.2}>
-                  <Chip
-                    label={`${t("dashboard.hiring.newApps")}: ${workspace.applications.length}`}
-                  />
-                  <Chip label={`${t("dashboard.hiring.interviews")}: 5`} color="warning" />
-                  <Chip label={`${t("dashboard.hiring.offers")}: 2`} color="success" />
+                <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
+                  {[
+                    { label: `${t("dashboard.hiring.newApps")}: ${workspace.applications.length}`, color: "#3B82F6", bg: isDark ? "rgba(59,130,246,0.12)" : "rgba(219,234,254,0.6)" },
+                    { label: `${t("dashboard.hiring.interviews")}: 5`, color: "#F59E0B", bg: isDark ? "rgba(245,158,11,0.12)" : "rgba(254,243,199,0.7)" },
+                    { label: `${t("dashboard.hiring.offers")}: 2`, color: "#10B981", bg: isDark ? "rgba(16,185,129,0.12)" : "rgba(209,250,229,0.6)" },
+                  ].map((item) => (
+                    <Box
+                      key={item.label}
+                      sx={{
+                        flex: 1,
+                        p: 1.5,
+                        borderRadius: 2,
+                        bgcolor: item.bg,
+                        border: "1px solid",
+                        borderColor: `${item.color}33`,
+                        textAlign: "center",
+                      }}
+                    >
+                      <Typography fontWeight={700} sx={{ color: item.color }}>{item.label}</Typography>
+                    </Box>
+                  ))}
                 </Stack>
               </CardContent>
             </Card>
@@ -1861,47 +1961,67 @@ export default function DashboardPage() {
         )}
 
         <Grid size={{ xs: 12, lg: 7 }}>
-          <Card>
-            <CardContent>
+          <Card
+            elevation={0}
+            sx={{
+              border: "1px solid",
+              borderColor: isDark ? "rgba(148,163,184,0.1)" : "rgba(148,163,184,0.18)",
+              borderRadius: 3,
+            }}
+          >
+            <CardContent sx={{ p: 2.5 }}>
               <Stack
                 direction={{ xs: "column", sm: "row" }}
                 spacing={1}
                 alignItems={{ xs: "flex-start", sm: "center" }}
                 justifyContent="space-between"
-                sx={{ mb: 1.5 }}
+                sx={{ mb: 2 }}
               >
-                <Typography variant="h6">
+                <Typography variant="h6" fontWeight={700}>
                   {tr("Live workspace activity", "Жива активність workspace")}
                 </Typography>
                 <Chip
                   size="small"
-                  color="primary"
                   label={tr(`${workspace.activity.length} events`, `${workspace.activity.length} подій`)}
+                  sx={{
+                    fontWeight: 600,
+                    bgcolor: isDark ? "rgba(59,130,246,0.15)" : "rgba(219,234,254,0.7)",
+                    color: isDark ? "#60A5FA" : "#2563EB",
+                    border: "1px solid",
+                    borderColor: isDark ? "rgba(96,165,250,0.2)" : "rgba(37,99,235,0.15)",
+                  }}
                 />
               </Stack>
 
-              <Stack spacing={1.2}>
+              <Stack spacing={1}>
                 {workspace.activity.slice(0, 6).map((item) => (
-                  <Card key={item.id} variant="outlined">
-                    <CardContent sx={{ py: 1.2 }}>
-                      <Stack
-                        direction={{ xs: "column", sm: "row" }}
-                        spacing={1}
-                        justifyContent="space-between"
-                        alignItems={{ xs: "flex-start", sm: "center" }}
-                      >
-                        <Box>
-                          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-                            <Chip size="small" label={item.area} color={activityColor(item.severity)} />
-                            <Typography variant="caption" color="text.secondary">
-                              {formatDateTime(item.createdAt, locale)}
-                            </Typography>
-                          </Stack>
-                          <Typography variant="body2">{item.message}</Typography>
-                        </Box>
-                      </Stack>
-                    </CardContent>
-                  </Card>
+                  <Box
+                    key={item.id}
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 2,
+                      border: "1px solid",
+                      borderColor: isDark ? "rgba(148,163,184,0.08)" : "rgba(148,163,184,0.15)",
+                      bgcolor: isDark ? "rgba(15,23,42,0.4)" : "rgba(248,250,252,0.8)",
+                      transition: "background 200ms",
+                      "&:hover": { bgcolor: isDark ? "rgba(30,41,59,0.5)" : "rgba(241,245,249,0.9)" },
+                    }}
+                  >
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Chip
+                        size="small"
+                        label={item.area}
+                        color={activityColor(item.severity)}
+                        sx={{ fontWeight: 600, fontSize: 11 }}
+                      />
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="body2" fontWeight={500} noWrap>{item.message}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatDateTime(item.createdAt, locale)}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Box>
                 ))}
               </Stack>
             </CardContent>
@@ -1910,64 +2030,76 @@ export default function DashboardPage() {
 
         <Grid size={{ xs: 12, lg: 5 }}>
           <Stack spacing={2}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
+            <Card
+              elevation={0}
+              sx={{
+                border: "1px solid",
+                borderColor: isDark ? "rgba(148,163,184,0.1)" : "rgba(148,163,184,0.18)",
+                borderRadius: 3,
+              }}
+            >
+              <CardContent sx={{ p: 2.5 }}>
+                <Typography variant="h6" fontWeight={700} gutterBottom>
                   {tr("Platform readiness", "Готовність платформи")}
                 </Typography>
-                <Stack spacing={1.3}>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary">
-                      {tr("Automation coverage", "Покриття автоматизацією")}
-                    </Typography>
-                    <LinearProgress variant="determinate" value={82} sx={{ mt: 0.6, height: 8, borderRadius: 8 }} />
-                  </Box>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary">
-                      {tr("Hiring conversion quality", "Якість конверсії найму")}
-                    </Typography>
-                    <LinearProgress
-                      color="secondary"
-                      variant="determinate"
-                      value={analyticsSummary.conversion}
-                      sx={{ mt: 0.6, height: 8, borderRadius: 8 }}
-                    />
-                  </Box>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary">
-                      {tr("Interview pipeline freshness", "Актуальність пайплайну інтерв'ю")}
-                    </Typography>
-                    <LinearProgress
-                      color="success"
-                      variant="determinate"
-                      value={Math.min(100, Math.max(20, workspace.interviews.length * 14))}
-                      sx={{ mt: 0.6, height: 8, borderRadius: 8 }}
-                    />
-                  </Box>
+                <Stack spacing={2}>
+                  {[
+                    { label: tr("Automation coverage", "Покриття автоматизацією"), value: 82, color: "#3B82F6" },
+                    { label: tr("Hiring conversion quality", "Якість конверсії найму"), value: analyticsSummary.conversion, color: "#8B5CF6" },
+                    { label: tr("Interview pipeline freshness", "Актуальність пайплайну інтерв'ю"), value: Math.min(100, Math.max(20, workspace.interviews.length * 14)), color: "#10B981" },
+                  ].map((bar) => (
+                    <Box key={bar.label}>
+                      <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                        <Typography variant="body2" color="text.secondary">{bar.label}</Typography>
+                        <Typography variant="body2" fontWeight={700} sx={{ color: bar.color }}>{bar.value}%</Typography>
+                      </Stack>
+                      <LinearProgress
+                        variant="determinate"
+                        value={bar.value}
+                        sx={{
+                          height: 7,
+                          borderRadius: 4,
+                          bgcolor: isDark ? "rgba(30,41,59,0.6)" : "rgba(241,245,249,0.9)",
+                          "& .MuiLinearProgress-bar": { bgcolor: bar.color, borderRadius: 4 },
+                        }}
+                      />
+                    </Box>
+                  ))}
                 </Stack>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
+            <Card
+              elevation={0}
+              sx={{
+                border: "1px solid",
+                borderColor: isDark ? "rgba(148,163,184,0.1)" : "rgba(148,163,184,0.18)",
+                borderRadius: 3,
+              }}
+            >
+              <CardContent sx={{ p: 2.5 }}>
+                <Typography variant="h6" fontWeight={700} gutterBottom>
                   {tr("Live counters", "Живі лічильники")}
                 </Typography>
-                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                  <Chip
-                    label={tr(`${unreadNotifications} unread notifications`, `${unreadNotifications} непрочитаних сповіщень`)}
-                    color={unreadNotifications > 0 ? "warning" : "default"}
-                  />
-                  <Chip
-                    label={tr(`${workspace.interviews.length} interviews`, `${workspace.interviews.length} інтерв'ю`)}
-                    color="primary"
-                    variant="outlined"
-                  />
-                  <Chip
-                    label={tr(`${workspace.teamMembers.length} team members`, `${workspace.teamMembers.length} учасників команди`)}
-                    color="secondary"
-                    variant="outlined"
-                  />
+                <Stack spacing={1}>
+                  {[
+                    { label: tr(`${unreadNotifications} unread notifications`, `${unreadNotifications} непрочитаних сповіщень`), color: unreadNotifications > 0 ? "#F59E0B" : undefined },
+                    { label: tr(`${workspace.interviews.length} interviews`, `${workspace.interviews.length} інтерв'ю`), color: "#3B82F6" },
+                    { label: tr(`${workspace.teamMembers.length} team members`, `${workspace.teamMembers.length} учасників команди`), color: "#8B5CF6" },
+                  ].map((item) => (
+                    <Stack key={item.label} direction="row" alignItems="center" spacing={1.5}
+                      sx={{
+                        p: 1.2,
+                        borderRadius: 2,
+                        bgcolor: isDark ? "rgba(15,23,42,0.4)" : "rgba(248,250,252,0.8)",
+                        border: "1px solid",
+                        borderColor: isDark ? "rgba(148,163,184,0.08)" : "rgba(148,163,184,0.15)",
+                      }}
+                    >
+                      <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: item.color ?? "text.disabled", flexShrink: 0 }} />
+                      <Typography variant="body2" fontWeight={500}>{item.label}</Typography>
+                    </Stack>
+                  ))}
                 </Stack>
               </CardContent>
             </Card>
@@ -3491,25 +3623,77 @@ export default function DashboardPage() {
 
           <Grid container spacing={3}>
             <Grid size={{ xs: 12, md: 3 }}>
-              <Card sx={{ position: { md: "sticky" }, top: 24 }}>
-                <CardContent>
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+              <Card
+                elevation={0}
+                sx={{
+                  position: { md: "sticky" },
+                  top: 24,
+                  border: "1px solid",
+                  borderColor: themeMode === "dark" ? "rgba(148,163,184,0.1)" : "rgba(148,163,184,0.18)",
+                  borderRadius: 3,
+                  overflow: "hidden",
+                }}
+              >
+                <Box
+                  sx={{
+                    px: 2,
+                    py: 1.5,
+                    borderBottom: "1px solid",
+                    borderColor: themeMode === "dark" ? "rgba(148,163,184,0.08)" : "rgba(148,163,184,0.12)",
+                    background: themeMode === "dark"
+                      ? "linear-gradient(135deg, rgba(37,99,235,0.08), rgba(124,58,237,0.05))"
+                      : "linear-gradient(135deg, rgba(239,246,255,0.9), rgba(245,243,255,0.9))",
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontWeight: 700,
+                      letterSpacing: 1,
+                      textTransform: "uppercase",
+                      color: themeMode === "dark" ? "rgba(148,163,184,0.7)" : "rgba(100,116,139,0.7)",
+                    }}
+                  >
                     {t("dashboard.workspace")}
                   </Typography>
-                  <List disablePadding>
-                    {tabs.map((tab) => (
-                      <ListItemButton
-                        key={tab.value}
-                        selected={currentTab === tab.value}
-                        onClick={() => setActiveTab(tab.value)}
-                        sx={{ borderRadius: 2, mb: 0.6 }}
-                      >
-                        <ListItemIcon sx={{ minWidth: 32 }}>{tab.icon}</ListItemIcon>
-                        <ListItemText primary={t(tab.labelKey)} />
-                      </ListItemButton>
-                    ))}
-                  </List>
-                </CardContent>
+                </Box>
+                <Box sx={{ p: 1 }}>
+                  {tabs.map((tab) => (
+                    <ListItemButton
+                      key={tab.value}
+                      selected={currentTab === tab.value}
+                      onClick={() => setActiveTab(tab.value)}
+                      sx={{
+                        borderRadius: 2,
+                        mb: 0.4,
+                        py: 1,
+                        px: 1.5,
+                        transition: "all 200ms",
+                        "&.Mui-selected": {
+                          background: themeMode === "dark"
+                            ? "linear-gradient(135deg, rgba(37,99,235,0.2), rgba(124,58,237,0.15))"
+                            : "linear-gradient(135deg, rgba(219,234,254,0.9), rgba(237,233,254,0.8))",
+                          "& .MuiListItemIcon-root": {
+                            color: themeMode === "dark" ? "#60A5FA" : "#2563EB",
+                          },
+                          "& .MuiListItemText-primary": {
+                            fontWeight: 700,
+                            color: themeMode === "dark" ? "#60A5FA" : "#2563EB",
+                          },
+                        },
+                        "&:hover:not(.Mui-selected)": {
+                          bgcolor: themeMode === "dark" ? "rgba(30,41,59,0.5)" : "rgba(241,245,249,0.8)",
+                        },
+                      }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 34, color: "text.secondary" }}>{tab.icon}</ListItemIcon>
+                      <ListItemText
+                        primary={t(tab.labelKey)}
+                        primaryTypographyProps={{ variant: "body2", fontWeight: 500 }}
+                      />
+                    </ListItemButton>
+                  ))}
+                </Box>
               </Card>
             </Grid>
 
