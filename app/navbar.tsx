@@ -58,7 +58,9 @@ export default function Navbar() {
 
     const navLinks = [
         { href: "/", label: t("nav.home") },
+        { href: "/jobs", label: t("nav.jobs") },
         { href: "/companies", label: t("nav.companies") },
+        { href: "/resume-builder", label: t("nav.resumeBuilder") },
         { href: "/salary", label: t("nav.salary") },
         { href: "/blog", label: t("nav.blog") },
         { href: "/pricing", label: t("nav.pricing") },
