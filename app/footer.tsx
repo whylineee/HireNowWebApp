@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 
 import Link from "next/link";
 import {
@@ -51,13 +52,20 @@ function FooterLink({
 
 export default function Footer({ language, isDark }: FooterProps) {
     const t = (key: string) => translate(language, key);
+    const [dashboardLink, setDashboardLink] = useState("/auth");
+
+    useEffect(() => {
+        if (getSession()) {
+            setDashboardLink("/dashboard");
+        }
+    }, []);
 
     const columns = [
         {
             title: t("footer.product"),
             links: [
                 { label: t("footer.home"), href: "/" },
-                { label: t("footer.dashboard"), href: typeof window !== "undefined" && getSession() ? "/dashboard" : "/auth" },
+                { label: t("footer.dashboard"), href: dashboardLink },
                 { label: t("footer.companies"), href: "/companies" },
                 { label: t("nav.pricing"), href: "/pricing" },
             ],
