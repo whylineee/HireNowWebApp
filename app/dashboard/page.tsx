@@ -844,7 +844,7 @@ export default function DashboardPage() {
         const jobIds = employerJobs.map(j => j.id);
         if (jobIds.length > 0) {
           const { data } = await supabase.from('applications')
-            .select('*, profile:profiles!applicant_id(full_name, location, skills), job:jobs!job_id(title, company)')
+            .select('*, profile:profiles!applicant_id(full_name, location, skills), job:jobs!job_id(title)')
             .in('job_id', jobIds);
           appsData = data || [];
         }
@@ -852,7 +852,7 @@ export default function DashboardPage() {
         const { data: fetchJobs } = await supabase.from('jobs').select('*').order('created_at', { ascending: false });
         jobsData = fetchJobs || [];
         const { data: fetchApps } = await supabase.from('applications')
-          .select('*, job:jobs!job_id(title, company)')
+          .select('*, job:jobs!job_id(title)')
           .eq('applicant_id', user.id);
         appsData = fetchApps || [];
       }
