@@ -130,6 +130,24 @@ export default function AuthPage() {
         }
       });
       if (authError) { setError(mapAuthError(authError.message)); return; }
+
+      // Crucial part: insert the user into `profiles` immediately so foreign keys (like jobs) work!
+      if (data.user) {
+        const { error: profileError } = await supabase.from('profiles').insert([
+          {
+            id: data.user.id,
+            full_name: fullName,
+            role: role,
+            location: "Remote",
+            skills: ["React"]
+          }
+        ]);
+        if (profileError) {
+          setError("Error creating profile: " + profileError.message);
+          return;
+        }
+      }
+
       setSuccess(t("auth.success.created"));
       router.push("/dashboard");
       return;
