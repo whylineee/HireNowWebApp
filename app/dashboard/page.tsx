@@ -737,12 +737,11 @@ export default function DashboardPage() {
     return tr("Invited", "Запрошений");
   };
 
-  const [session] = useState<LocalSession | null>(() => getSession());
+  const [session, setSession] = useState<LocalSession | null>(null);
+  const [loadingSession, setLoadingSession] = useState(true);
 
   const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
-  const [workspace, setWorkspace] = useState<WorkspaceState>(() =>
-    loadWorkspaceFromStorage(session),
-  );
+  const [workspace, setWorkspace] = useState<WorkspaceState>(() => createDefaultWorkspace(null));
 
   const [notice, setNotice] = useState<Notice | null>(null);
   const [jobSearch, setJobSearch] = useState("");
@@ -784,10 +783,32 @@ export default function DashboardPage() {
   const [notifAnchor, setNotifAnchor] = useState<HTMLButtonElement | null>(null);
 
   useEffect(() => {
-    if (!session) {
-      router.replace("/auth");
+    async function initSession() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.replace("/auth");
+        return;
+      }
+
+      // Fetch user profile from Supabase
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+
+      const newSession: LocalSession = {
+        email: user.email || '',
+        fullName: profile?.full_name || user.user_metadata?.full_name || 'User',
+        role: profile?.role || user.user_metadata?.role || 'job_seeker',
+        signedInAt: new Date().toISOString()
+      };
+
+      setSession(newSession);
+      setWorkspace(loadWorkspaceFromStorage(newSession));
+      setLoadingSession(false);
     }
-  }, [session, router]);
+
+    initSession();
+  }, [router]);
 
   useEffect(() => {
     if (!session) {
@@ -970,7 +991,9 @@ export default function DashboardPage() {
     ].slice(0, 30);
   }
 
-  function handleSignOut() {
+  async function handleSignOut() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
     signOut();
     router.push("/auth");
   }
@@ -3498,7 +3521,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (!session) {
+  if (loadingSession || !session) {
     return (
       <Container maxWidth="md" sx={{ py: 8 }}>
         <Typography>{t("common.loadingDashboard")}</Typography>
