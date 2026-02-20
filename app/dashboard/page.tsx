@@ -235,11 +235,6 @@ const employerTabs: TabConfig[] = [
     icon: <GroupsOutlinedIcon fontSize="small" />,
   },
   {
-    value: "applications",
-    labelKey: "tab.applications",
-    icon: <WorkOutlineIcon fontSize="small" />,
-  },
-  {
     value: "messages",
     labelKey: "tab.messages",
     icon: <EmailOutlinedIcon fontSize="small" />,
@@ -436,20 +431,20 @@ function createDefaultResume(session: LocalSession | null): ResumeState {
 
 function createDefaultWorkspace(session: LocalSession | null): WorkspaceState {
   return {
-    jobs: sampleJobs,
+    jobs: [],
     savedJobs: [],
     appliedJobIds: [],
-    messages: sampleMessages,
-    notifications: sampleNotifications,
-    interviews: sampleInterviews,
-    applications: sampleApplications,
-    candidates: sampleCandidates,
-    teamMembers: sampleTeamMembers,
-    invoices: sampleInvoices,
-    apiKeys: sampleApiKeys,
-    webhooks: sampleWebhooks,
-    activity: sampleActivity,
-    analytics: sampleAnalytics,
+    messages: [], // Fake messages removed
+    notifications: [], // Fake notifications removed
+    interviews: [], // Fake interviews removed
+    applications: [], // Fake applications removed
+    candidates: [], // Fake candidates removed
+    teamMembers: [], // Fake team members removed
+    invoices: [],
+    apiKeys: [],
+    webhooks: [],
+    activity: [],
+    analytics: [],
     resume: createDefaultResume(session),
     integrations: {
       github: getEmptyConnection(),
@@ -545,26 +540,20 @@ function sanitizeWorkspace(rawWorkspace: unknown, session: LocalSession | null):
   const workspace = rawWorkspace as Partial<WorkspaceState>;
 
   return {
-    jobs: Array.isArray(workspace.jobs) ? workspace.jobs : fallback.jobs,
+    jobs: [], // Force empty, will be fetched
     savedJobs: sanitizeStringArray(workspace.savedJobs),
     appliedJobIds: sanitizeStringArray(workspace.appliedJobIds),
-    messages: Array.isArray(workspace.messages) ? workspace.messages : fallback.messages,
-    notifications: Array.isArray(workspace.notifications)
-      ? workspace.notifications
-      : fallback.notifications,
-    interviews: Array.isArray(workspace.interviews) ? workspace.interviews : fallback.interviews,
-    applications: Array.isArray(workspace.applications)
-      ? workspace.applications
-      : fallback.applications,
-    candidates: Array.isArray(workspace.candidates) ? workspace.candidates : fallback.candidates,
-    teamMembers: Array.isArray(workspace.teamMembers)
-      ? workspace.teamMembers
-      : fallback.teamMembers,
-    invoices: Array.isArray(workspace.invoices) ? workspace.invoices : fallback.invoices,
-    apiKeys: Array.isArray(workspace.apiKeys) ? workspace.apiKeys : fallback.apiKeys,
-    webhooks: Array.isArray(workspace.webhooks) ? workspace.webhooks : fallback.webhooks,
-    activity: Array.isArray(workspace.activity) ? workspace.activity : fallback.activity,
-    analytics: Array.isArray(workspace.analytics) ? workspace.analytics : fallback.analytics,
+    messages: [], // Force empty to drop local storage fakes
+    notifications: [], // Force empty to drop local storage fakes
+    interviews: [], // Force empty
+    applications: [], // Force empty, will be fetched
+    candidates: [], // Force empty, will be fetched
+    teamMembers: [], // Force empty
+    invoices: [],
+    apiKeys: [],
+    webhooks: [],
+    activity: [],
+    analytics: [],
     resume: sanitizeResume(workspace.resume, session),
     integrations: {
       github: sanitizeConnection(workspace.integrations?.github),
@@ -909,11 +898,27 @@ export default function DashboardPage() {
           hireRate: 10
         }];
 
+        // Generate Messages based on Applications
+        const mappedMessages = session.role === 'employer' ? appsData.map(app => ({
+          id: `msg-${app.id}`,
+          sender: app.profile?.full_name || 'System',
+          subject: `New application: ${app.job?.title || 'Job'}`,
+          snippet: `Candidate ${app.profile?.full_name || 'Anonymous'} has applied for ${app.job?.title || 'your job'}. Cover letter: ${app.cover_letter?.substring(0, 50) || 'None'}...`,
+          unread: app.status === 'New' || !app.status,
+        })) : appsData.map(app => ({
+          id: `msg-${app.id}`,
+          sender: app.job?.company || 'System',
+          subject: `Application sent: ${app.job?.title || 'Job'}`,
+          snippet: `You successfully applied for ${app.job?.title || 'a job'} at ${app.job?.company || 'the company'}. Status: ${app.status || 'Applied'}`,
+          unread: false,
+        }));
+
         return {
           ...prev,
           jobs: mappedJobs,
           candidates: mappedCandidates,
           applications: mappedApps,
+          messages: mappedMessages.length > 0 ? mappedMessages : [],
           analytics: realAnalytics
         };
       });
