@@ -832,15 +832,15 @@ export default function DashboardPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch jobs
-      const { data: jobsData } = await supabase.from('jobs').select('*').order('created_at', { ascending: false });
-
+      let jobsData: any[] = [];
       let appsData: any[] = [];
       let employerJobs: any[] = [];
 
       if (session.role === 'employer') {
-        const { data: eJobs } = await supabase.from('jobs').select('id').eq('employer_id', user.id);
-        employerJobs = eJobs || [];
+        const { data } = await supabase.from('jobs').select('*').eq('employer_id', user.id).order('created_at', { ascending: false });
+        jobsData = data || [];
+        employerJobs = jobsData;
+
         const jobIds = employerJobs.map(j => j.id);
         if (jobIds.length > 0) {
           const { data } = await supabase.from('applications')
@@ -849,10 +849,12 @@ export default function DashboardPage() {
           appsData = data || [];
         }
       } else {
-        const { data } = await supabase.from('applications')
+        const { data: fetchJobs } = await supabase.from('jobs').select('*').order('created_at', { ascending: false });
+        jobsData = fetchJobs || [];
+        const { data: fetchApps } = await supabase.from('applications')
           .select('*, job:jobs!job_id(title, company)')
           .eq('applicant_id', user.id);
-        appsData = data || [];
+        appsData = fetchApps || [];
       }
 
       setWorkspace(prev => {

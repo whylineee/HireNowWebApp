@@ -204,6 +204,19 @@ export default function JobsPage() {
             return;
         }
 
+        const { data: profile } = await supabase.from('profiles').select('id').eq('id', user.id).single();
+        if (!profile) {
+            await supabase.from('profiles').insert([
+                {
+                    id: user.id,
+                    full_name: user.user_metadata?.full_name || 'User',
+                    role: user.user_metadata?.role || 'job_seeker',
+                    location: "Remote",
+                    skills: ["React"]
+                }
+            ]);
+        }
+
         const { error } = await supabase.from('applications').insert({
             job_id: applyJob.id,
             applicant_id: user.id,
