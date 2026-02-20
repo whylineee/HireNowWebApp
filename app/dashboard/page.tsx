@@ -793,7 +793,25 @@ export default function DashboardPage() {
       }
 
       // Fetch user profile from Supabase
-      const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      let { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+
+      // Fix for older accounts: Auto-create profile if it's missing (resolves foreign key errors)
+      if (!profile) {
+        const fallbackRole = user.user_metadata?.role || 'job_seeker';
+        const fallbackName = user.user_metadata?.full_name || 'User';
+
+        const { data: newProfile } = await supabase.from('profiles').insert([
+          {
+            id: user.id,
+            full_name: fallbackName,
+            role: fallbackRole,
+            location: "Remote",
+            skills: ["React"]
+          }
+        ]).select().single();
+
+        profile = newProfile;
+      }
 
       const newSession: LocalSession = {
         email: user.email || '',
