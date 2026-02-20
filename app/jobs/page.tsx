@@ -193,8 +193,28 @@ export default function JobsPage() {
         );
     }
 
-    function handleApply() {
+    async function handleApply() {
         if (!applyForm.name.trim() || !applyForm.email.includes("@")) return;
+
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+            setToast("You must be logged in to apply for a job.");
+            return;
+        }
+
+        const { error } = await supabase.from('applications').insert({
+            job_id: applyJob.id,
+            applicant_id: user.id,
+            cover_letter: applyForm.cover
+        });
+
+        if (error) {
+            setToast("Error applying: " + error.message);
+            return;
+        }
+
         setApplySubmitted(true);
         setTimeout(() => {
             setApplyJob(null);
