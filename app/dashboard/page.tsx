@@ -1664,11 +1664,19 @@ export default function DashboardPage() {
     }
 
     const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      setNoticeMessage("error", "You must be logged in to create a job.");
+      return;
+    }
+
     const { data, error } = await supabase.from('jobs').insert([{
       title,
       description: 'Job requirement created from dashboard.',
       salary,
       location,
+      employer_id: user.id
     }]).select().single();
 
     if (error) {
@@ -1704,7 +1712,15 @@ export default function DashboardPage() {
     setNoticeMessage("success", t("notice.addJob.success"));
   }
 
-  function removeJobPost(jobId: string) {
+  async function removeJobPost(jobId: string) {
+    const supabase = createClient();
+    const { error } = await supabase.from('jobs').delete().eq('id', jobId);
+
+    if (error) {
+      setNoticeMessage("error", "Error deleting job: " + error.message);
+      return;
+    }
+
     setWorkspace((prev) => ({
       ...prev,
       jobs: prev.jobs.filter((job) => job.id !== jobId),
