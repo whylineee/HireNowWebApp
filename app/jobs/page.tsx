@@ -47,8 +47,7 @@ import ViewListRoundedIcon from "@mui/icons-material/ViewListRounded";
 import WorkOutlineIcon from "@mui/icons-material/WorkOutline";
 import { useAppSettings } from "@/lib/app-settings";
 import { translate } from "@/lib/i18n";
-import { sampleJobs } from "@/lib/mock-data";
-import { getSession } from "@/lib/local-auth";
+import { createClient } from "@/utils/supabase/client";
 import Navbar from "@/app/navbar";
 import Footer from "@/app/footer";
 
@@ -101,7 +100,7 @@ export default function JobsPage() {
     const [showFilters, setShowFilters] = useState(false);
     const [bookmarks, setBookmarks] = useState<string[]>(readBookmarks);
     const [alerts, setAlerts] = useState<string[]>(readAlerts);
-    const [applyJob, setApplyJob] = useState<(typeof sampleJobs)[0] | null>(null);
+    const [applyJob, setApplyJob] = useState<any | null>(null);
     const [applyForm, setApplyForm] = useState({ name: "", email: "", cover: "" });
     const [applySubmitted, setApplySubmitted] = useState(false);
     const [toast, setToast] = useState("");
@@ -109,7 +108,33 @@ export default function JobsPage() {
     const [alertDialog, setAlertDialog] = useState(false);
     const [alertEmail, setAlertEmail] = useState("");
 
-    const isLoggedIn = typeof window !== "undefined" && getSession() !== null;
+    type JobEntry = { id: string, title: string, company: string, location: string, tags: string[], salaryRange: string, employmentType: string, description: string };
+    const [dbJobs, setDbJobs] = useState<JobEntry[]>([]);
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+    useEffect(() => {
+        const supabase = createClient();
+        async function load() {
+            const { data: { user } } = await supabase.auth.getUser();
+            setIsLoggedIn(!!user);
+
+            const { data } = await supabase.from('jobs').select('*');
+            if (data) {
+                const mapped = data.map(j => ({
+                    id: j.id,
+                    title: j.title || 'Untitled',
+                    company: 'TechCompany',
+                    location: j.location || 'Remote',
+                    employmentType: 'Full-time',
+                    salaryRange: j.salary || 'Negotiable',
+                    tags: ['React', 'Next.js'],
+                    description: j.description || ''
+                }));
+                setDbJobs(mapped);
+            }
+        }
+        load();
+    }, []);
 
     useEffect(() => {
         localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
@@ -121,12 +146,12 @@ export default function JobsPage() {
     // All unique tags
     const allTags = useMemo(() => {
         const set = new Set<string>();
-        sampleJobs.forEach((j) => j.tags.forEach((t) => set.add(t)));
+        dbJobs.forEach((j) => j.tags.forEach((t: string) => set.add(t)));
         return Array.from(set).slice(0, 14);
-    }, []);
+    }, [dbJobs]);
 
     const filtered = useMemo(() => {
-        let jobs = sampleJobs.filter((job) => {
+        let jobs = dbJobs.filter((job) => {
             const q = search.toLowerCase();
             const matchSearch =
                 !q ||
@@ -313,7 +338,7 @@ export default function JobsPage() {
                         {/* Quick stats */}
                         <Stack direction="row" spacing={3} flexWrap="wrap" justifyContent="center">
                             {[
-                                { value: `${sampleJobs.length}+`, label: t("jobs.stat.open") },
+                                { value: `${dbJobs.length > 0 ? dbJobs.length : '0'}`, label: t("jobs.stat.open") },
                                 { value: "320+", label: t("jobs.stat.companies") },
                                 { value: "94%", label: t("jobs.stat.match") },
                             ].map((s) => (

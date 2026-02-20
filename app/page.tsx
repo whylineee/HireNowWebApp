@@ -38,6 +38,7 @@ import { translate } from "@/lib/i18n";
 import { sampleJobs, sampleTestimonials } from "@/lib/mock-data";
 import Footer from "@/app/footer";
 import Navbar from "@/app/navbar";
+import { createClient } from "@/utils/supabase/client";
 
 /* ── Animated counter hook ───────────────────────────────────────── */
 function useCountUp(target: number, inView: boolean, duration = 1800) {
@@ -319,14 +320,40 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [emailInput, setEmailInput] = useState("");
   const [emailSubmitted, setEmailSubmitted] = useState(false);
+  const [dbJobs, setDbJobs] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function fetchJobs() {
+      const supabase = createClient();
+      const { data } = await supabase.from('jobs').select('*').limit(3);
+      if (data && data.length > 0) {
+        setDbJobs(data);
+      }
+    }
+    fetchJobs();
+  }, []);
 
   const filteredJobs = useMemo(() => {
-    if (!searchQuery.trim()) return sampleJobs.slice(0, 3);
+    // Map database standard fields to to the UI's sample format
+    const jobsToShow = dbJobs.length > 0
+      ? dbJobs.map((j) => ({
+        id: j.id,
+        title: j.title || 'Untitled',
+        company: 'TechCompany', // Default placeholder
+        location: j.location || 'Remote',
+        employmentType: 'Full-time',
+        salaryRange: j.salary || 'Negotiable',
+        tags: ['React', 'Next.js'], // Default placeholders
+        description: j.description || ''
+      }))
+      : sampleJobs.slice(0, 3); // Fallback until DB is populated with more
+
+    if (!searchQuery.trim()) return jobsToShow.slice(0, 3);
     const q = searchQuery.toLowerCase();
-    return sampleJobs
+    return jobsToShow
       .filter((j) => `${j.title} ${j.company} ${j.tags.join(" ")}`.toLowerCase().includes(q))
       .slice(0, 4);
-  }, [searchQuery]);
+  }, [searchQuery, dbJobs]);
 
   function handleEmailSubmit() {
     if (!emailInput.includes("@")) return;

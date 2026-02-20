@@ -60,6 +60,7 @@ import SpaceDashboardOutlinedIcon from "@mui/icons-material/SpaceDashboardOutlin
 import WorkOutlineIcon from "@mui/icons-material/WorkOutline";
 import CreditCardOutlinedIcon from "@mui/icons-material/CreditCardOutlined";
 import CodeRoundedIcon from "@mui/icons-material/CodeRounded";
+import { createClient } from "@/utils/supabase/client";
 import {
   changePassword,
   getSession,
@@ -794,6 +795,31 @@ export default function DashboardPage() {
     }
     persistWorkspace(session, workspace);
   }, [workspace, session]);
+
+  // Supabase sync for Jobs
+  useEffect(() => {
+    if (!session) return;
+    const fetchJobs = async () => {
+      const supabase = createClient();
+      const { data } = await supabase.from('jobs').select('*').order('created_at', { ascending: false });
+      if (data) {
+        setWorkspace(prev => ({
+          ...prev,
+          jobs: data.map(j => ({
+            id: j.id,
+            title: j.title || 'Untitled',
+            company: session.role === 'employer' ? session.fullName : 'TechCompany',
+            location: j.location || 'Remote',
+            employmentType: 'Full-time',
+            salaryRange: j.salary || 'Negotiable',
+            tags: ['React', 'Next.js'],
+            description: j.description || ''
+          }))
+        }));
+      }
+    };
+    fetchJobs();
+  }, [session]);
 
   const tabs = useMemo<TabConfig[]>(() => {
     if (!session) {
@@ -1542,7 +1568,7 @@ export default function DashboardPage() {
     setNoticeMessage("success", tr("Invoice paid.", "Інвойс оплачено."));
   }
 
-  function addJobPost() {
+  async function addJobPost() {
     const title = jobTitle.trim();
     const company = jobCompany.trim();
     const location = jobLocation.trim();
@@ -1553,11 +1579,24 @@ export default function DashboardPage() {
       return;
     }
 
+    const supabase = createClient();
+    const { data, error } = await supabase.from('jobs').insert([{
+      title,
+      description: 'Job requirement created from dashboard.',
+      salary,
+      location,
+    }]).select().single();
+
+    if (error) {
+      setNoticeMessage("error", "Error creating job: " + error.message);
+      return;
+    }
+
     setWorkspace((prev) => ({
       ...prev,
       jobs: [
         {
-          id: `job-${Date.now()}`,
+          id: data.id,
           title,
           company,
           location,

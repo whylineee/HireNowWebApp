@@ -37,12 +37,9 @@ import SecurityRoundedIcon from "@mui/icons-material/SecurityRounded";
 import WorkOutlineIcon from "@mui/icons-material/WorkOutline";
 import { useAppSettings } from "@/lib/app-settings";
 import { translate } from "@/lib/i18n";
-import {
-  resetPasswordByEmail,
-  signIn,
-  signUp,
-  type UserRole,
-} from "@/lib/local-auth";
+import { createClient } from "@/utils/supabase/client";
+
+type UserRole = "job_seeker" | "employer";
 
 function getPasswordStrength(pw: string): { score: number; label: string; color: string; key: string } {
   let score = 0;
@@ -113,44 +110,54 @@ export default function AuthPage() {
     return message;
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     setSuccess("");
     if (!validate()) return;
 
+    const supabase = createClient();
+
     if (mode === "sign_up") {
-      const result = signUp({ email, password, fullName, role });
-      if (!result.ok) { setError(mapAuthError(result.message ?? "Unable to create account.")); return; }
+      const { data, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            role: role
+          }
+        }
+      });
+      if (authError) { setError(mapAuthError(authError.message)); return; }
       setSuccess(t("auth.success.created"));
       router.push("/dashboard");
       return;
     }
 
-    const result = signIn({ email, password });
-    if (!result.ok) { setError(mapAuthError(result.message ?? "Unable to sign in.")); return; }
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    if (authError) { setError(mapAuthError(authError.message)); return; }
     setSuccess(t("auth.success.signedIn"));
     router.push("/dashboard");
   }
 
-  function handleResetPassword(event: React.FormEvent<HTMLFormElement>) {
+  async function handleResetPassword(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setResetError("");
     setResetSuccess("");
     if (!resetEmail.includes("@")) { setResetError(t("auth.error.email")); return; }
-    if (resetPassword.length < 6) { setResetError(t("auth.error.password")); return; }
-    if (resetPassword !== resetConfirmPassword) { setResetError(t("auth.error.passwordMismatch")); return; }
 
-    const result = resetPasswordByEmail({ email: resetEmail, newPassword: resetPassword });
-    if (!result.ok) { setResetError(mapAuthError(result.message ?? "Unable to reset password.")); return; }
-    setResetSuccess(t("auth.success.passwordReset"));
+    // Supabase sends a reset email link rather than updating immediately
+    const supabase = createClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail);
+    if (error) { setResetError(mapAuthError(error.message)); return; }
+
+    setResetSuccess(language === "uk" ? "Посилання відправлено! Перевірте пошту." : "Reset link sent! Check your email.");
     setTimeout(() => {
       setResetOpen(false);
-      setResetPassword("");
-      setResetConfirmPassword("");
       setResetError("");
       setResetSuccess("");
-    }, 650);
+    }, 2000);
   }
 
   const pwStrength = useMemo(() => getPasswordStrength(password), [password]);
@@ -604,25 +611,7 @@ export default function AuthPage() {
               </Button>
             </Stack>
 
-            {/* Demo hint */}
-            <Box
-              sx={{
-                borderRadius: 2.5,
-                p: 1.5,
-                bgcolor: isDark ? "rgba(30,64,175,0.1)" : "rgba(219,234,254,0.5)",
-                border: "1px solid",
-                borderColor: isDark ? "rgba(96,165,250,0.15)" : "rgba(37,99,235,0.12)",
-              }}
-            >
-              <Stack direction="row" spacing={1} alignItems="flex-start">
-                <CheckCircleRoundedIcon sx={{ fontSize: 16, color: isDark ? "#60A5FA" : "#2563EB", mt: 0.1, flexShrink: 0 }} />
-                <Typography variant="caption" sx={{ color: isDark ? "rgba(148,163,184,0.8)" : "rgba(71,85,105,0.8)", lineHeight: 1.5 }}>
-                  {language === "uk"
-                    ? "Демо-режим: реєструйся з будь-яким email. Дані зберігаються локально."
-                    : "Demo mode: register with any email. Data is stored locally in your browser."}
-                </Typography>
-              </Stack>
-            </Box>
+            {/* Demo hint removed (since authentication is real now) */}
           </Stack>
         </Box>
 
@@ -661,8 +650,6 @@ export default function AuthPage() {
             <Stack spacing={2}>
               <Typography variant="body2" color="text.secondary">{t("auth.resetPasswordSubtitle")}</Typography>
               <TextField label={t("auth.email")} type="email" required value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} sx={inputSx} />
-              <TextField label={t("auth.newPassword")} type="password" required value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} sx={inputSx} />
-              <TextField label={t("auth.confirmPassword")} type="password" required value={resetConfirmPassword} onChange={(e) => setResetConfirmPassword(e.target.value)} sx={inputSx} />
               {resetError && <Alert severity="error" sx={{ borderRadius: 2 }}>{resetError}</Alert>}
               {resetSuccess && <Alert severity="success" sx={{ borderRadius: 2 }}>{resetSuccess}</Alert>}
             </Stack>
