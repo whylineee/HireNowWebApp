@@ -20,7 +20,7 @@ export type Application = {
   id: string;
   position: string;
   company: string;
-  stage: "Applied" | "Interview" | "Offer" | "Rejected";
+  stage: "Applied" | "Interview" | "Offer" | "Rejected" | "Accepted";
   updatedAt: string;
 };
 
@@ -30,7 +30,7 @@ export type Candidate = {
   stack: string;
   location: string;
   yearsExp: number;
-  status: "New" | "Reviewed" | "Shortlisted";
+  status: "New" | "Reviewed" | "Shortlisted" | "Accepted";
   matchScore?: number;
   source?: string;
 };
@@ -322,7 +322,7 @@ export const sampleApplications: Application[] = [
     id: "app-3",
     position: "QA Automation Engineer",
     company: "SprintCore",
-    stage: "Offer",
+    stage: "Accepted",
     updatedAt: "2026-02-10",
   },
   {
@@ -361,7 +361,7 @@ export const sampleCandidates: Candidate[] = [
     stack: "DevOps, AWS",
     location: "Remote",
     yearsExp: 6,
-    status: "Shortlisted",
+    status: "Accepted",
     matchScore: 95,
     source: "Direct",
   },

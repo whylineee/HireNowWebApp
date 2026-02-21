@@ -142,6 +142,15 @@ type IntegrationConnection = {
   connectedAt: string | null;
 };
 
+type ChatMessage = {
+  id: string;
+  senderId: string;
+  senderName: string;
+  text: string;
+  timestamp: string;
+  isEmployer: boolean;
+};
+
 type WorkspaceState = {
   jobs: Job[];
   savedJobs: string[];
@@ -159,6 +168,7 @@ type WorkspaceState = {
   analytics: AnalyticsPoint[];
   resume: ResumeState;
   integrations: Record<IntegrationProvider, IntegrationConnection>;
+  chats: Record<string, ChatMessage[]>;
 };
 
 type Notice = {
@@ -274,7 +284,7 @@ const employerTabs: TabConfig[] = [
 const WORKSPACE_STORAGE_KEY = "hire_now_workspace_v2";
 
 function stageColor(stage: string): "default" | "success" | "warning" | "error" {
-  if (stage === "Offer") {
+  if (stage === "Offer" || stage === "Accepted") {
     return "success";
   }
   if (stage === "Interview") {
@@ -287,7 +297,7 @@ function stageColor(stage: string): "default" | "success" | "warning" | "error" 
 }
 
 function candidateColor(status: Candidate["status"]): "default" | "success" | "warning" {
-  if (status === "Shortlisted") {
+  if (status === "Shortlisted" || status === "Accepted") {
     return "success";
   }
   if (status === "Reviewed") {
@@ -450,6 +460,7 @@ function createDefaultWorkspace(session: LocalSession | null): WorkspaceState {
       github: getEmptyConnection(),
       linkedin: getEmptyConnection(),
     },
+    chats: {},
   };
 }
 
@@ -559,6 +570,7 @@ function sanitizeWorkspace(rawWorkspace: unknown, session: LocalSession | null):
       github: sanitizeConnection(workspace.integrations?.github),
       linkedin: sanitizeConnection(workspace.integrations?.linkedin),
     },
+    chats: workspace.chats && typeof workspace.chats === "object" ? workspace.chats as Record<string, ChatMessage[]> : {},
   };
 }
 
@@ -674,6 +686,9 @@ export default function DashboardPage() {
     if (stage === "Offer") {
       return t("status.offer");
     }
+    if (stage === "Accepted") {
+      return tr("Accepted", "Прийнято");
+    }
     return t("status.rejected");
   };
 
@@ -683,6 +698,9 @@ export default function DashboardPage() {
     }
     if (status === "Reviewed") {
       return t("status.reviewed");
+    }
+    if (status === "Accepted") {
+      return tr("Accepted", "Прийнято");
     }
     return t("status.shortlisted");
   };
@@ -737,6 +755,8 @@ export default function DashboardPage() {
   const [jobTypeFilter, setJobTypeFilter] = useState<JobTypeFilter>("all");
   const [candidateSearch, setCandidateSearch] = useState("");
   const [messageSearch, setMessageSearch] = useState("");
+  const [chatParticipant, setChatParticipant] = useState<{ id: string; name: string; position: string; isEmployer: boolean } | null>(null);
+  const [chatMessageText, setChatMessageText] = useState("");
   const [notificationFilter, setNotificationFilter] = useState<
     NotificationItem["severity"] | "all"
   >("all");
@@ -1778,6 +1798,10 @@ export default function DashboardPage() {
           return { ...candidate, status: "Shortlisted" };
         }
 
+        if (candidate.status === "Shortlisted") {
+          return { ...candidate, status: "Accepted" };
+        }
+
         return candidate;
       }),
       activity: withActivity(
@@ -1786,6 +1810,40 @@ export default function DashboardPage() {
         tr("Candidate status moved forward.", "Статус кандидата переведено далі."),
       ),
     }));
+  }
+
+  function handleSendMessage() {
+    if (!chatMessageText.trim() || !chatParticipant || !session) return;
+
+    setWorkspace((prev) => {
+      const newChats = { ...prev.chats };
+      const participantId = chatParticipant.id;
+      const history = newChats[participantId] || [];
+
+      newChats[participantId] = [
+        ...history,
+        {
+          id: `chat-${Date.now()}-${Math.random().toString(36).substring(2)}`,
+          senderId: session.email,
+          senderName: prev.resume?.fullName || session.email.split("@")[0],
+          text: chatMessageText.trim(),
+          timestamp: new Date().toISOString(),
+          isEmployer: session.role !== "job_seeker",
+        },
+      ];
+
+      return {
+        ...prev,
+        chats: newChats,
+        activity: withActivity(
+          prev,
+          tr("Chat", "Чат"),
+          tr("Message sent.", "Повідомлення надіслано.")
+        )
+      };
+    });
+
+    setChatMessageText("");
   }
 
   function addSkill() {
@@ -2391,6 +2449,7 @@ export default function DashboardPage() {
                 <TableCell>{t("dashboard.applications.company")}</TableCell>
                 <TableCell>{t("dashboard.applications.status")}</TableCell>
                 <TableCell>{t("dashboard.applications.updated")}</TableCell>
+                <TableCell align="right">{tr("Action", "Дія")}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -2406,6 +2465,23 @@ export default function DashboardPage() {
                     />
                   </TableCell>
                   <TableCell>{formatDate(application.updatedAt, locale)}</TableCell>
+                  <TableCell align="right">
+                    {application.stage === "Accepted" ? (
+                      <Button
+                        size="small"
+                        onClick={() =>
+                          setChatParticipant({
+                            id: application.id,
+                            name: application.company,
+                            position: application.position,
+                            isEmployer: false,
+                          })
+                        }
+                      >
+                        {tr("Chat", "Чат")}
+                      </Button>
+                    ) : null}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -3283,9 +3359,28 @@ export default function DashboardPage() {
                       />
                     </TableCell>
                     <TableCell align="right">
-                      <Button size="small" onClick={() => changeCandidateStatus(candidate.id)}>
-                        {t("dashboard.candidates.move")}
-                      </Button>
+                      <Stack direction="row" spacing={1} justifyContent="flex-end">
+                        {candidate.status === "Accepted" ? (
+                          <Button
+                            size="small"
+                            onClick={() =>
+                              setChatParticipant({
+                                id: candidate.id,
+                                name: candidate.name,
+                                position: candidate.stack,
+                                isEmployer: true,
+                              })
+                            }
+                          >
+                            {tr("Chat", "Чат")}
+                          </Button>
+                        ) : null}
+                        {candidate.status !== "Accepted" ? (
+                          <Button size="small" onClick={() => changeCandidateStatus(candidate.id)}>
+                            {t("dashboard.candidates.move")}
+                          </Button>
+                        ) : null}
+                      </Stack>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -3933,6 +4028,79 @@ export default function DashboardPage() {
           </Grid>
         </Stack>
       </Container>
+
+      <Dialog open={!!chatParticipant} onClose={() => setChatParticipant(null)} fullWidth maxWidth="sm">
+        <DialogTitle>
+          {tr("Chat with", "Чат з")} {chatParticipant?.name}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Typography variant="body2" color="text.secondary">
+              {chatParticipant?.isEmployer
+                ? tr("Discussing role:", "Обговорення посади:")
+                : tr("Discussing application for:", "Обговорення заявки на:")}{" "}
+              {chatParticipant?.position}
+            </Typography>
+
+            <Box sx={{ flexGrow: 1, minHeight: 200, maxHeight: 400, overflowY: "auto", display: "flex", flexDirection: "column", gap: 1 }}>
+              {(chatParticipant && workspace.chats[chatParticipant.id] || []).map((msg) => {
+                const isMine = msg.senderId === session?.email;
+                return (
+                  <Box
+                    key={msg.id}
+                    sx={{
+                      alignSelf: isMine ? "flex-end" : "flex-start",
+                      maxWidth: "80%",
+                      bgcolor: isMine ? "primary.main" : "background.paper",
+                      color: isMine ? "primary.contrastText" : "text.primary",
+                      p: 1.5,
+                      borderRadius: 2,
+                      border: isMine ? "none" : "1px solid",
+                      borderColor: "divider",
+                    }}
+                  >
+                    {!isMine && (
+                      <Typography variant="caption" sx={{ display: "block", mb: 0.5, opacity: 0.7 }}>
+                        {msg.senderName} ({msg.isEmployer ? tr("Employer", "Роботодавець") : tr("Candidate", "Кандидат")})
+                      </Typography>
+                    )}
+                    <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>{msg.text}</Typography>
+                    <Typography variant="caption" sx={{ display: "block", mt: 0.5, opacity: 0.7, textAlign: "right" }}>
+                      {formatDateTime(msg.timestamp, locale)}
+                    </Typography>
+                  </Box>
+                );
+              })}
+              {(!chatParticipant || !workspace.chats[chatParticipant.id] || workspace.chats[chatParticipant.id].length === 0) && (
+                <Typography color="text.secondary" align="center" sx={{ mt: 4 }}>
+                  {tr("No messages yet. Start the conversation!", "Поки немає повідомлень. Почніть спілкування!")}
+                </Typography>
+              )}
+            </Box>
+
+            <TextField
+              fullWidth
+              multiline
+              rows={2}
+              placeholder={tr("Type your message...", "Введіть ваше повідомлення...")}
+              value={chatMessageText}
+              onChange={(e) => setChatMessageText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setChatParticipant(null)}>{t("common.cancel")}</Button>
+          <Button onClick={handleSendMessage} variant="contained">
+            {tr("Send Message", "Надіслати")}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={connectionDialog.open} onClose={closeConnectionDialog} fullWidth maxWidth="sm">
         <DialogTitle>
