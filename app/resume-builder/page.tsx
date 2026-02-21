@@ -318,6 +318,11 @@ export default function ResumeBuilderPage() {
         setToast("Resume exported!");
     }
 
+    function exportPdf() {
+        window.print();
+        setToast("Preparing PDF...");
+    }
+
     const scoreColor =
         atsScore >= 80 ? "#10B981" : atsScore >= 60 ? "#F59E0B" : "#EF4444";
 
@@ -436,21 +441,35 @@ export default function ResumeBuilderPage() {
                                                         : "📝 Needs work. Fill in all sections for better results."}
                                             </Typography>
                                         </Stack>
-                                        <Button
-                                            variant="contained"
-                                            startIcon={<DownloadRoundedIcon />}
-                                            onClick={exportText}
-                                            sx={{
-                                                ml: 2,
-                                                borderRadius: 99,
-                                                fontWeight: 700,
-                                                textTransform: "none",
-                                                background: "linear-gradient(135deg, #2563EB, #4F46E5)",
-                                                whiteSpace: "nowrap",
-                                            }}
-                                        >
-                                            Export
-                                        </Button>
+                                        <Stack direction="row" spacing={1} sx={{ ml: 2 }}>
+                                            <Button
+                                                variant="outlined"
+                                                startIcon={<DownloadRoundedIcon />}
+                                                onClick={exportText}
+                                                sx={{
+                                                    borderRadius: 99,
+                                                    fontWeight: 700,
+                                                    textTransform: "none",
+                                                    whiteSpace: "nowrap",
+                                                }}
+                                            >
+                                                TXT
+                                            </Button>
+                                            <Button
+                                                variant="contained"
+                                                startIcon={<DownloadRoundedIcon />}
+                                                onClick={exportPdf}
+                                                sx={{
+                                                    borderRadius: 99,
+                                                    fontWeight: 700,
+                                                    textTransform: "none",
+                                                    background: "linear-gradient(135deg, #2563EB, #4F46E5)",
+                                                    whiteSpace: "nowrap",
+                                                }}
+                                            >
+                                                PDF
+                                            </Button>
+                                        </Stack>
                                     </Stack>
                                 </CardContent>
                             </Card>
@@ -868,8 +887,36 @@ export default function ResumeBuilderPage() {
                                     </Stack>
                                 </Box>
 
+                                {/* Global Print Styles */}
+                                <style jsx global>{`
+                                    @media print {
+                                        body * {
+                                            visibility: hidden !important;
+                                        }
+                                        #resume-preview-content, #resume-preview-content * {
+                                            visibility: visible !important;
+                                            color: black !important;
+                                        }
+                                        #resume-preview-content {
+                                            position: absolute !important;
+                                            left: 0 !important;
+                                            top: 0 !important;
+                                            width: 100% !important;
+                                            max-height: none !important;
+                                            overflow: visible !important;
+                                            padding: 2rem !important;
+                                            box-shadow: none !important;
+                                            background: white !important;
+                                        }
+                                        @page {
+                                            margin: 0.5cm;
+                                        }
+                                    }
+                                `}</style>
+
                                 {/* Resume Preview */}
                                 <Box
+                                    id="resume-preview-content"
                                     sx={{
                                         p: 3,
                                         maxHeight: { lg: "calc(100vh - 280px)" },

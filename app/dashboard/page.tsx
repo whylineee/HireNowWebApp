@@ -3321,73 +3321,95 @@ export default function DashboardPage() {
             <Typography variant="h6" gutterBottom>
               {t("dashboard.candidates.title")}
             </Typography>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>{t("dashboard.candidates.name")}</TableCell>
-                  <TableCell>{t("dashboard.candidates.stack")}</TableCell>
-                  <TableCell>{t("dashboard.candidates.location")}</TableCell>
-                  <TableCell>{t("dashboard.candidates.experience")}</TableCell>
-                  <TableCell>{tr("Match", "Збіг")}</TableCell>
-                  <TableCell>{tr("Source", "Джерело")}</TableCell>
-                  <TableCell>{t("dashboard.candidates.status")}</TableCell>
-                  <TableCell align="right">{t("dashboard.candidates.action")}</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredCandidates.map((candidate) => (
-                  <TableRow key={candidate.id}>
-                    <TableCell>{candidate.name}</TableCell>
-                    <TableCell>{candidate.stack}</TableCell>
-                    <TableCell>{candidate.location}</TableCell>
-                    <TableCell>
-                      {candidate.yearsExp} {t("dashboard.candidates.years")}
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        size="small"
-                        color={(candidate.matchScore ?? 0) >= 90 ? "success" : "default"}
-                        label={`${candidate.matchScore ?? 0}%`}
-                      />
-                    </TableCell>
-                    <TableCell>{candidate.source ?? tr("Direct", "Напряму")}</TableCell>
-                    <TableCell>
-                      <Chip
-                        size="small"
-                        label={localizeCandidateStatus(candidate.status)}
-                        color={candidateColor(candidate.status)}
-                      />
-                    </TableCell>
-                    <TableCell align="right">
-                      <Stack direction="row" spacing={1} justifyContent="flex-end">
-                        {candidate.status === "Accepted" ? (
-                          <Button
-                            size="small"
-                            onClick={() =>
-                              setChatParticipant({
-                                id: candidate.id,
-                                name: candidate.name,
-                                position: candidate.stack,
-                                isEmployer: true,
-                              })
-                            }
-                          >
-                            {tr("Chat", "Чат")}
-                          </Button>
-                        ) : null}
-                        {candidate.status !== "Accepted" ? (
-                          <Button size="small" onClick={() => changeCandidateStatus(candidate.id)}>
-                            {t("dashboard.candidates.move")}
-                          </Button>
-                        ) : null}
-                      </Stack>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
           </CardContent>
         </Card>
+
+        <Box sx={{ overflowX: "auto", pb: 2 }}>
+          <Stack direction="row" spacing={3} sx={{ minWidth: 1000 }}>
+            {(["New", "Reviewed", "Shortlisted", "Accepted"] as Candidate["status"][]).map((status) => {
+              const columnCandidates = filteredCandidates.filter(c => c.status === status);
+              return (
+                <Stack key={status} spacing={2} sx={{ width: 320, flexShrink: 0 }}>
+                  <Typography variant="subtitle2" fontWeight={800} color="text.secondary" sx={{ textTransform: "uppercase" }}>
+                    {localizeCandidateStatus(status)} ({columnCandidates.length})
+                  </Typography>
+                  <Stack spacing={2}>
+                    {columnCandidates.map((candidate) => (
+                      <Card key={candidate.id} elevation={0} sx={{
+                        border: "1px solid",
+                        borderColor: "divider",
+                        borderRadius: 3,
+                        transition: "all 0.2s",
+                        '&:hover': {
+                          borderColor: "primary.main",
+                          transform: "translateY(-2px)",
+                          boxShadow: "0 4px 12px rgba(0,0,0,0.05)"
+                        }
+                      }}>
+                        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                          <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 1 }}>
+                            <Typography fontWeight={700}>{candidate.name}</Typography>
+                            <Chip size="small" label={`${candidate.matchScore ?? 0}%`} color={(candidate.matchScore ?? 0) >= 90 ? "success" : "default"} sx={{ height: 20, fontSize: "0.65rem", fontWeight: 700 }} />
+                          </Stack>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>{candidate.stack}</Typography>
+                          <Stack direction="row" spacing={1} sx={{ mb: 1, opacity: 0.8 }}>
+                            <Typography variant="caption" color="text.secondary">📍 {candidate.location}</Typography>
+                            <Typography variant="caption" color="text.secondary">💼 {candidate.yearsExp} {t("dashboard.candidates.years")}</Typography>
+                          </Stack>
+
+                          <Divider sx={{ my: 1.5 }} />
+
+                          <Stack direction="row" spacing={1} justifyContent="flex-end">
+                            {candidate.status === "Accepted" ? (
+                              <Button
+                                size="small"
+                                variant="contained"
+                                disableElevation
+                                sx={{ textTransform: "none", borderRadius: 2 }}
+                                onClick={() =>
+                                  setChatParticipant({
+                                    id: candidate.id,
+                                    name: candidate.name,
+                                    position: candidate.stack,
+                                    isEmployer: true,
+                                  })
+                                }
+                              >
+                                {tr("Chat", "Чат")}
+                              </Button>
+                            ) : null}
+                            {candidate.status !== "Accepted" ? (
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                sx={{ textTransform: "none", borderRadius: 2 }}
+                                onClick={() => changeCandidateStatus(candidate.id)}
+                              >
+                                {t("dashboard.candidates.move")}
+                              </Button>
+                            ) : null}
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    {columnCandidates.length === 0 && (
+                      <Box sx={{
+                        p: 3,
+                        textAlign: 'center',
+                        border: '1px dashed',
+                        borderColor: 'divider',
+                        borderRadius: 2,
+                        bgcolor: "background.default"
+                      }}>
+                        <Typography variant="caption" color="text.secondary">No candidates</Typography>
+                      </Box>
+                    )}
+                  </Stack>
+                </Stack>
+              );
+            })}
+          </Stack>
+        </Box>
       </Stack>
     );
   }
